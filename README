@@ -1,0 +1,66 @@
+Você está trabalhando em um sistema ERP com foco em infraestrutura, organização de código, escalabilidade e manutenção.
+
+Antes de realizar qualquer alteração, leve em consideração obrigatoriamente os seguintes princípios e padrões do projeto:
+
+Arquitetura do sistema
+
+O projeto deve seguir uma arquitetura hexagonal, separando claramente as responsabilidades entre domínio, aplicação, infraestrutura e interfaces externas.
+
+A lógica principal do sistema não deve depender diretamente de frameworks, banco de dados, bibliotecas externas ou detalhes de interface.
+
+Sempre que necessário, utilize portas e adapters para isolar integrações externas, como banco de dados, APIs, autenticação, serviços externos e qualquer outro recurso de infraestrutura.
+
+Princípios SOLID
+
+Toda alteração deve respeitar os princípios SOLID:
+
+Single Responsibility Principle: cada arquivo, classe, função ou módulo deve ter uma responsabilidade clara.
+Open/Closed Principle: novas funcionalidades devem ser adicionadas com o mínimo possível de alteração em código já existente.
+Liskov Substitution Principle: abstrações devem poder ser substituídas sem quebrar o comportamento esperado.
+Interface Segregation Principle: evite interfaces genéricas demais; prefira contratos pequenos e específicos.
+Dependency Inversion Principle: módulos de alto nível não devem depender diretamente de implementações concretas.
+Padrões de projeto e boas práticas
+
+Sempre que fizer sentido, aplique padrões de projeto adequados ao contexto, sem exageros desnecessários.
+
+Priorize código simples, legível, testável e fácil de manter.
+
+Evite duplicação de código, acoplamento excessivo, funções grandes, responsabilidades misturadas e soluções improvisadas.
+
+Antes de criar uma nova solução, verifique se já existe algum padrão, componente, serviço, adapter, helper ou estrutura semelhante no projeto.
+
+Frontend
+
+O frontend deve sempre priorizar o uso de componentes compartilhados, partials e estruturas reutilizáveis.
+
+Não crie o mesmo trecho visual ou funcional repetido em várias páginas.
+
+Se uma alteração afetar menus, headers, sidebars, cards, botões, formulários, tabelas ou qualquer bloco reutilizável, a alteração deve ser feita em um componente/partial compartilhado, e não individualmente em cada tela.
+
+O objetivo é garantir que futuras alterações sejam feitas em apenas um lugar sempre que possível.
+
+Banco de dados e infraestrutura
+
+Como o sistema tem foco em infraestrutura, qualquer alteração envolvendo banco, migrations, conexão, autenticação, deploy, variáveis de ambiente ou adapters deve ser feita com cuidado para manter segurança, escalabilidade e facilidade de manutenção.
+
+Não exponha senhas, chaves, tokens ou dados sensíveis no código.
+
+Configurações devem ficar em variáveis de ambiente ou arquivos apropriados, respeitando boas práticas de segurança.
+
+Forma de resposta esperada
+
+Antes de alterar o código, analise a estrutura existente do projeto.
+
+Explique brevemente qual abordagem será usada.
+
+Depois implemente a alteração respeitando a arquitetura existente.
+
+Ao final, informe quais arquivos foram alterados e por quê.
+
+Evite soluções rápidas que quebrem a organização do projeto.
+
+Nunca altere a arquitetura sem necessidade.
+
+Sempre preserve a separação de responsabilidades, reutilização de componentes e clareza do código.
+
+Este projeto deve ser tratado como um ERP profissional, com foco em crescimento futuro, manutenção limpa e infraestrutura bem estruturada.

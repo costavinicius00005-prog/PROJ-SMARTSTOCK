@@ -21,80 +21,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-
-const orders = [
-  {
-    id: 1,
-    number: "G1",
-    date: "04/03/2026",
-    client: "MEIRE SOARES MENDONCA MORAIS LTDA",
-    total: "R$ 1.245,00",
-    status: "Orcamento",
-    statusColor: "bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/30",
-  },
-  {
-    id: 2,
-    number: "G2",
-    date: "03/03/2026",
-    client: "JOAO DA SILVA ME",
-    total: "R$ 3.890,00",
-    status: "Faturado",
-    statusColor: "bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]/30",
-  },
-  {
-    id: 3,
-    number: "G3",
-    date: "03/03/2026",
-    client: "MARIA SANTOS COMERCIO LTDA",
-    total: "R$ 756,00",
-    status: "Pendente",
-    statusColor: "bg-primary/10 text-primary border-primary/30",
-  },
-  {
-    id: 4,
-    number: "G4",
-    date: "02/03/2026",
-    client: "CARLOS FERREIRA E CIA",
-    total: "R$ 2.100,00",
-    status: "Faturado",
-    statusColor: "bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]/30",
-  },
-  {
-    id: 5,
-    number: "G5",
-    date: "02/03/2026",
-    client: "SMARTSTOCK MATERIAIS ESPORTIVOS",
-    total: "R$ 4.320,00",
-    status: "Cancelado",
-    statusColor: "bg-destructive/10 text-destructive border-destructive/30",
-  },
-  {
-    id: 6,
-    number: "G6",
-    date: "01/03/2026",
-    client: "DISTRIBUIDORA NORTE SUL LTDA",
-    total: "R$ 8.750,00",
-    status: "Faturado",
-    statusColor: "bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]/30",
-  },
-  {
-    id: 7,
-    number: "G7",
-    date: "01/03/2026",
-    client: "LOJA DO ESPORTE EIRELI",
-    total: "R$ 1.960,00",
-    status: "Orcamento",
-    statusColor: "bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/30",
-  },
-]
+import { appUseCases } from "@/src/composition/use-cases"
+import { salesOrderStatusClassName } from "@/src/presentation/formatters/status-styles"
+import { useSearch } from "@/src/presentation/hooks/use-search"
 
 export function SalesListContent() {
   const [search, setSearch] = useState("")
-
-  const filtered = orders.filter(
-    (o) =>
-      o.client.toLowerCase().includes(search.toLowerCase()) ||
-      o.number.includes(search)
+  const orders = appUseCases.listSalesOrders()
+  const filtered = useSearch(orders, search, (order, normalizedSearch) =>
+    order.client.toLowerCase().includes(normalizedSearch) ||
+    order.number.includes(normalizedSearch)
   )
 
   return (
@@ -157,7 +93,7 @@ export function SalesListContent() {
                     {order.total}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={order.statusColor}>
+                    <Badge variant="outline" className={salesOrderStatusClassName(order.status)}>
                       {order.status}
                     </Badge>
                   </TableCell>

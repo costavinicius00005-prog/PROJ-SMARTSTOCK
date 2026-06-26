@@ -28,111 +28,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-
-const products = [
-  {
-    id: 1,
-    name: "BOTA FEM. DE USO COMUM C/ SOLA SINT. CABEDAL TEXTI",
-    type: "Simples",
-    code: "507183",
-    ref: "27551209",
-    stock: "1 PAR",
-    price: "R$ 312,00",
-    status: "Ativo",
-  },
-  {
-    id: 2,
-    name: "BOTA FEM. DE USO COMUM C/ SOLA SINT. CABEDAL TEXTI",
-    type: "Simples",
-    code: "507182",
-    ref: "27551207",
-    stock: "2 PAR",
-    price: "R$ 312,00",
-    status: "Ativo",
-  },
-  {
-    id: 3,
-    name: "BOTA FEM. DE USO COMUM C/ SOLA SINT. CABEDAL TEXTI",
-    type: "Simples",
-    code: "507181",
-    ref: "27551205",
-    stock: "2 PAR",
-    price: "R$ 312,00",
-    status: "Ativo",
-  },
-  {
-    id: 4,
-    name: "BOTA FEM. DE USO COMUM C/ SOLA SINT. CABEDAL TEXTI",
-    type: "Simples",
-    code: "507180",
-    ref: "27551201",
-    stock: "2 PAR",
-    price: "R$ 312,00",
-    status: "Ativo",
-  },
-  {
-    id: 5,
-    name: "BOTA FEM. DE USO COMUM C/ SOLA SINT. CABEDAL TEXTI",
-    type: "Simples",
-    code: "507179",
-    ref: "27551197",
-    stock: "2 PAR",
-    price: "R$ 312,00",
-    status: "Ativo",
-  },
-  {
-    id: 6,
-    name: "BOTA FEM. DE USO COMUM C/ SOLA SINT. CABEDAL TEXTI",
-    type: "Simples",
-    code: "507178",
-    ref: "27551195",
-    stock: "2 PAR",
-    price: "R$ 312,00",
-    status: "Ativo",
-  },
-  {
-    id: 7,
-    name: "BOTA FEM. DE USO COMUM C/ SOLA SINT. CABEDAL TEXTI",
-    type: "Simples",
-    code: "507177",
-    ref: "27551193",
-    stock: "1 PAR",
-    price: "R$ 312,00",
-    status: "Ativo",
-  },
-  {
-    id: 8,
-    name: "CHUTEIRA SOCIETY BRASIL 70 PRO Y-1 PT-DR-BC T 44",
-    type: "Simples",
-    code: "507176",
-    ref: "242317904144",
-    stock: "1 PARES",
-    price: "R$ 410,00",
-    status: "Ativo",
-  },
-]
+import { appUseCases } from "@/src/composition/use-cases"
+import type { Product } from "@/src/domain/catalog/product"
+import { useSearch } from "@/src/presentation/hooks/use-search"
+import { useTableSort } from "@/src/presentation/hooks/use-table-sort"
+import { entityStatusClassName } from "@/src/presentation/formatters/status-styles"
 
 export function ProductsContent() {
   const [search, setSearch] = useState("")
-  const [sortColumn, setSortColumn] = useState<string | null>(null)
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
-
-  const filtered = products.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    p.code.includes(search) ||
-    p.ref.includes(search)
+  const products = appUseCases.listProducts()
+  const filtered = useSearch(products, search, (product, normalizedSearch) =>
+    product.name.toLowerCase().includes(normalizedSearch) ||
+    product.code.includes(normalizedSearch) ||
+    product.ref.includes(normalizedSearch)
   )
+  const { sortedItems, sortColumn, sortDir, handleSort } = useTableSort(filtered)
 
-  const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      setSortDir(sortDir === "asc" ? "desc" : "asc")
-    } else {
-      setSortColumn(column)
-      setSortDir("asc")
-    }
-  }
-
-  const SortIcon = ({ column }: { column: string }) => {
+  const SortIcon = ({ column }: { column: keyof Product }) => {
     if (sortColumn !== column) return <ChevronDown className="size-3 text-muted-foreground/50" />
     return sortDir === "asc" ? (
       <ChevronUp className="size-3 text-primary" />
@@ -254,7 +166,7 @@ export function ProductsContent() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((product) => (
+              {sortedItems.map((product) => (
                 <TableRow key={product.id} className="hover:bg-muted/30">
                   <TableCell className="pl-4">
                     <div className="flex items-center gap-2">
@@ -268,7 +180,7 @@ export function ProductsContent() {
                   <TableCell className="text-center text-sm text-muted-foreground">{product.stock}</TableCell>
                   <TableCell className="text-sm text-foreground">{product.price}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="text-[#22c55e] border-[#22c55e]/30 bg-[#22c55e]/10">
+                    <Badge variant="outline" className={entityStatusClassName(product.status)}>
                       {product.status}
                     </Badge>
                   </TableCell>

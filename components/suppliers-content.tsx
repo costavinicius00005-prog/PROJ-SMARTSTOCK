@@ -20,21 +20,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-
-const suppliers = [
-  { id: 1, name: "MEIRE SOARES MENDONCA MORAIS LTDA", cpfCnpj: "12.345.678/0001-90", phone: "(31) 9999-8888", email: "meire@empresa.com", city: "Belo Horizonte - MG", status: "Ativo" },
-  { id: 2, name: "DISTRIBUIDORA NORTE SUL LTDA", cpfCnpj: "22.333.444/0001-55", phone: "(41) 9444-3333", email: "vendas@nortesul.com", city: "Curitiba - PR", status: "Ativo" },
-  { id: 3, name: "CALCADOS BRASIL LTDA", cpfCnpj: "33.444.555/0001-66", phone: "(11) 3333-2222", email: "contato@calcbrasil.com", city: "Franca - SP", status: "Ativo" },
-  { id: 4, name: "ESPORTES & CIA IMPORTACAO", cpfCnpj: "55.666.777/0001-88", phone: "(21) 2222-1111", email: "import@esportescia.com", city: "Rio de Janeiro - RJ", status: "Inativo" },
-]
+import { appUseCases } from "@/src/composition/use-cases"
+import { entityStatusClassName } from "@/src/presentation/formatters/status-styles"
+import { useSearch } from "@/src/presentation/hooks/use-search"
 
 export function SuppliersContent() {
   const [search, setSearch] = useState("")
-
-  const filtered = suppliers.filter(
-    (s) =>
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.cpfCnpj.includes(search)
+  const suppliers = appUseCases.listSuppliers()
+  const filtered = useSearch(suppliers, search, (supplier, normalizedSearch) =>
+    supplier.name.toLowerCase().includes(normalizedSearch) ||
+    supplier.cpfCnpj.includes(normalizedSearch)
   )
 
   return (
@@ -99,11 +94,7 @@ export function SuppliersContent() {
                   <TableCell>
                     <Badge
                       variant="outline"
-                      className={
-                        supplier.status === "Ativo"
-                          ? "bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]/30"
-                          : "bg-muted text-muted-foreground border-border"
-                      }
+                      className={entityStatusClassName(supplier.status)}
                     >
                       {supplier.status}
                     </Badge>

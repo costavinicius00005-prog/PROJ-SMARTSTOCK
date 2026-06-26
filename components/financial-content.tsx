@@ -32,106 +32,22 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-
-const contasPagar = [
-  {
-    id: 1,
-    description: "Aluguel do espaco comercial",
-    supplier: "Imobiliaria Centro Sul",
-    dueDate: "05/03/2026",
-    value: "R$ 4.500,00",
-    status: "Pendente",
-    statusColor: "bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/30",
-  },
-  {
-    id: 2,
-    description: "Fornecedor - Calcados Esportivos",
-    supplier: "MEIRE SOARES MENDONCA MORAIS LTDA",
-    dueDate: "10/03/2026",
-    value: "R$ 12.340,00",
-    status: "Pendente",
-    statusColor: "bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/30",
-  },
-  {
-    id: 3,
-    description: "Energia eletrica",
-    supplier: "CEMIG",
-    dueDate: "15/03/2026",
-    value: "R$ 890,00",
-    status: "Pendente",
-    statusColor: "bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/30",
-  },
-  {
-    id: 4,
-    description: "Internet empresarial",
-    supplier: "Vivo Empresas",
-    dueDate: "20/03/2026",
-    value: "R$ 299,90",
-    status: "Pago",
-    statusColor: "bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]/30",
-  },
-  {
-    id: 5,
-    description: "Fornecedor - Roupas Fitness",
-    supplier: "Distribuidora Norte Sul",
-    dueDate: "01/03/2026",
-    value: "R$ 8.750,00",
-    status: "Vencido",
-    statusColor: "bg-destructive/10 text-destructive border-destructive/30",
-  },
-]
-
-const contasReceber = [
-  {
-    id: 1,
-    description: "Pedido #G2 - Venda",
-    client: "JOAO DA SILVA ME",
-    dueDate: "10/03/2026",
-    value: "R$ 3.890,00",
-    status: "Pendente",
-    statusColor: "bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/30",
-  },
-  {
-    id: 2,
-    description: "Pedido #G4 - Venda",
-    client: "CARLOS FERREIRA E CIA",
-    dueDate: "15/03/2026",
-    value: "R$ 2.100,00",
-    status: "Pendente",
-    statusColor: "bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/30",
-  },
-  {
-    id: 3,
-    description: "Pedido #G6 - Venda",
-    client: "DISTRIBUIDORA NORTE SUL LTDA",
-    dueDate: "05/03/2026",
-    value: "R$ 8.750,00",
-    status: "Recebido",
-    statusColor: "bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]/30",
-  },
-  {
-    id: 4,
-    description: "Pedido #G7 - Venda",
-    client: "LOJA DO ESPORTE EIRELI",
-    dueDate: "20/03/2026",
-    value: "R$ 1.960,00",
-    status: "Pendente",
-    statusColor: "bg-[#f59e0b]/10 text-[#f59e0b] border-[#f59e0b]/30",
-  },
-  {
-    id: 5,
-    description: "Mensalidade - Cartao",
-    client: "Cartoes diversos",
-    dueDate: "28/02/2026",
-    value: "R$ 15.430,00",
-    status: "Vencido",
-    statusColor: "bg-destructive/10 text-destructive border-destructive/30",
-  },
-]
+import { appUseCases } from "@/src/composition/use-cases"
+import { financialStatusClassName } from "@/src/presentation/formatters/status-styles"
+import { useSearch } from "@/src/presentation/hooks/use-search"
 
 export function FinancialContent() {
   const [search, setSearch] = useState("")
   const [activeTab, setActiveTab] = useState("pagar")
+  const { summary, payables, receivables } = appUseCases.getFinancialOverview()
+  const filteredPayables = useSearch(payables, search, (account, normalizedSearch) =>
+    account.description.toLowerCase().includes(normalizedSearch) ||
+    account.supplier.toLowerCase().includes(normalizedSearch)
+  )
+  const filteredReceivables = useSearch(receivables, search, (account, normalizedSearch) =>
+    account.description.toLowerCase().includes(normalizedSearch) ||
+    account.client.toLowerCase().includes(normalizedSearch)
+  )
 
   return (
     <div className="p-6">
@@ -150,7 +66,7 @@ export function FinancialContent() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground mb-1">Total a Receber</p>
-            <p className="text-lg font-bold text-foreground">R$ 32.130,00</p>
+            <p className="text-lg font-bold text-foreground">{summary.totalReceivable}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border">
@@ -161,7 +77,7 @@ export function FinancialContent() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground mb-1">Total a Pagar</p>
-            <p className="text-lg font-bold text-foreground">R$ 26.779,90</p>
+            <p className="text-lg font-bold text-foreground">{summary.totalPayable}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border">
@@ -172,7 +88,7 @@ export function FinancialContent() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground mb-1">Contas Vencidas</p>
-            <p className="text-lg font-bold text-foreground">R$ 24.180,00</p>
+            <p className="text-lg font-bold text-foreground">{summary.overdue}</p>
           </CardContent>
         </Card>
         <Card className="bg-card border-border">
@@ -183,7 +99,7 @@ export function FinancialContent() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground mb-1">Saldo Previsto</p>
-            <p className="text-lg font-bold text-[#22c55e]">R$ 5.350,10</p>
+            <p className="text-lg font-bold text-[#22c55e]">{summary.expectedBalance}</p>
           </CardContent>
         </Card>
       </div>
@@ -244,13 +160,7 @@ export function FinancialContent() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {contasPagar
-                    .filter(
-                      (c) =>
-                        c.description.toLowerCase().includes(search.toLowerCase()) ||
-                        c.supplier.toLowerCase().includes(search.toLowerCase())
-                    )
-                    .map((conta) => (
+                  {filteredPayables.map((conta) => (
                       <TableRow key={conta.id} className="hover:bg-muted/30">
                         <TableCell className="pl-4 text-sm text-foreground">{conta.description}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{conta.supplier}</TableCell>
@@ -259,7 +169,7 @@ export function FinancialContent() {
                           {conta.value}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={conta.statusColor}>
+                          <Badge variant="outline" className={financialStatusClassName(conta.status)}>
                             {conta.status}
                           </Badge>
                         </TableCell>
@@ -312,13 +222,7 @@ export function FinancialContent() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {contasReceber
-                    .filter(
-                      (c) =>
-                        c.description.toLowerCase().includes(search.toLowerCase()) ||
-                        c.client.toLowerCase().includes(search.toLowerCase())
-                    )
-                    .map((conta) => (
+                  {filteredReceivables.map((conta) => (
                       <TableRow key={conta.id} className="hover:bg-muted/30">
                         <TableCell className="pl-4 text-sm text-foreground">{conta.description}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">{conta.client}</TableCell>
@@ -327,7 +231,7 @@ export function FinancialContent() {
                           {conta.value}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={conta.statusColor}>
+                          <Badge variant="outline" className={financialStatusClassName(conta.status)}>
                             {conta.status}
                           </Badge>
                         </TableCell>

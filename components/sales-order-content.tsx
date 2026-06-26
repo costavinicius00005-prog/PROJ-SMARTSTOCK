@@ -13,60 +13,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-
-interface ProductLine {
-  id: number
-  name: string
-  quantity: number
-  unitPrice: number
-  discount: number
-  subtotal: number
-}
+import { useSalesOrderDraft } from "@/src/presentation/hooks/use-sales-order-draft"
+import type { ProductLine } from "@/src/domain/sales/sales-order"
 
 export function SalesOrderContent() {
   const [client, setClient] = useState("")
   const [priceTable, setPriceTable] = useState("")
   const [representative, setRepresentative] = useState("")
-  const [products, setProducts] = useState<ProductLine[]>([
-    { id: 1, name: "", quantity: 0, unitPrice: 0, discount: 0, subtotal: 0 },
-  ])
-
-  const addProduct = () => {
-    setProducts([
-      ...products,
-      {
-        id: products.length + 1,
-        name: "",
-        quantity: 0,
-        unitPrice: 0,
-        discount: 0,
-        subtotal: 0,
-      },
-    ])
-  }
-
-  const removeProduct = (id: number) => {
-    if (products.length > 1) {
-      setProducts(products.filter((p) => p.id !== id))
-    }
-  }
-
-  const updateProduct = (id: number, field: keyof ProductLine, value: string | number) => {
-    setProducts(
-      products.map((p) => {
-        if (p.id === id) {
-          const updated = { ...p, [field]: value }
-          updated.subtotal = updated.quantity * updated.unitPrice - updated.discount
-          return updated
-        }
-        return p
-      })
-    )
-  }
-
-  const totalItems = products.reduce((acc, p) => acc + p.quantity, 0)
-  const totalDiscount = products.reduce((acc, p) => acc + p.discount, 0)
-  const total = products.reduce((acc, p) => acc + p.subtotal, 0)
+  const { products, totals, addProduct, removeProduct, updateProduct } = useSalesOrderDraft()
 
   return (
     <div className="p-6">
@@ -246,11 +200,11 @@ export function SalesOrderContent() {
             <div className="flex flex-col items-end mt-8 gap-2">
               <div className="flex items-center gap-8 text-sm">
                 <span className="text-muted-foreground">Quantidade de itens:</span>
-                <span className="text-foreground font-medium">{totalItems}</span>
+                <span className="text-foreground font-medium">{totals.totalItems}</span>
               </div>
               <div className="flex items-center gap-8 text-sm">
                 <span className="text-muted-foreground">Descontos:</span>
-                <span className="text-foreground">R$ {totalDiscount.toFixed(2)}</span>
+                <span className="text-foreground">R$ {totals.totalDiscount.toFixed(2)}</span>
               </div>
               <div className="flex items-center gap-8 text-sm">
                 <span className="text-muted-foreground">Frete:</span>
@@ -259,7 +213,7 @@ export function SalesOrderContent() {
               <div className="flex items-center gap-8 mt-2 pt-2 border-t border-border">
                 <span className="text-lg font-medium text-foreground">Total:</span>
                 <span className="text-lg font-bold text-primary">
-                  R$ {total.toFixed(2)}
+                  R$ {totals.total.toFixed(2)}
                 </span>
               </div>
               <button className="text-sm text-primary hover:underline mt-1">

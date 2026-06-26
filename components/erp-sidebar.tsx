@@ -31,94 +31,26 @@ import {
 } from "@/components/ui/sidebar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Badge } from "@/components/ui/badge"
+import { appUseCases } from "@/src/composition/use-cases"
+import type { NavigationIconKey } from "@/src/domain/navigation/navigation-item"
 
-const menuItems = [
-  {
-    title: "Visao Geral",
-    icon: LayoutDashboard,
-    href: "/",
-  },
-  {
-    title: "Cadastros",
-    icon: Users,
-    badge: "Novo",
-    children: [
-      { title: "Produtos", href: "/cadastros/produtos" },
-      { title: "Clientes", href: "/cadastros/clientes" },
-      { title: "Fornecedores", href: "/cadastros/fornecedores" },
-    ],
-  },
-  {
-    title: "Vendas",
-    icon: ShoppingCart,
-    children: [
-      { title: "Pedidos de Venda", href: "/vendas/pedidos" },
-      { title: "Orcamentos", href: "/vendas/orcamentos" },
-      { title: "Fechamento de Caixa", href: "/vendas/caixa" },
-    ],
-  },
-  {
-    title: "Raio X",
-    icon: BarChart3,
-    href: "/raio-x",
-  },
-  {
-    title: "Conta Stone",
-    icon: DollarSign,
-    href: "/conta-stone",
-  },
-  {
-    title: "Estoque",
-    icon: Package,
-    children: [
-      { title: "Movimentacoes", href: "/estoque/movimentacoes" },
-      { title: "Locais de Estoque", href: "/estoque/locais" },
-    ],
-  },
-  {
-    title: "Relatorios",
-    icon: BarChart3,
-    badge: "Novo",
-    href: "/relatorios",
-  },
-  {
-    title: "Financeiro",
-    icon: Wallet,
-    badge: "Novo",
-    children: [
-      { title: "Contas a Pagar", href: "/financeiro/contas-pagar" },
-      { title: "Contas a Receber", href: "/financeiro/contas-receber" },
-      { title: "Boletos", href: "/financeiro/boletos" },
-      { title: "Mensalidades", href: "/financeiro/mensalidades" },
-    ],
-  },
-  {
-    title: "Fiscal",
-    icon: FileText,
-    children: [
-      { title: "Documentos Fiscais", href: "/fiscal/documentos" },
-      { title: "Notas Fiscais", href: "/fiscal/notas" },
-    ],
-  },
-  {
-    title: "Contabilidade",
-    icon: Building2,
-    href: "/contabilidade",
-  },
-  {
-    title: "Configuracoes",
-    icon: Settings,
-    href: "/configuracoes",
-  },
-  {
-    title: "Loja de Aplicativos",
-    icon: Store,
-    href: "/aplicativos",
-  },
-]
+const navigationIcons: Record<NavigationIconKey, React.ComponentType<{ className?: string }>> = {
+  "layout-dashboard": LayoutDashboard,
+  users: Users,
+  "shopping-cart": ShoppingCart,
+  "bar-chart-3": BarChart3,
+  "dollar-sign": DollarSign,
+  wallet: Wallet,
+  "file-text": FileText,
+  "building-2": Building2,
+  settings: Settings,
+  package: Package,
+  store: Store,
+}
 
 export function ErpSidebar() {
   const pathname = usePathname()
+  const menuItems = appUseCases.listNavigationMenu()
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -138,6 +70,8 @@ export function ErpSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
+                const Icon = navigationIcons[item.icon]
+
                 if (item.children) {
                   return (
                     <Collapsible key={item.title} defaultOpen={item.children.some(c => pathname.startsWith(c.href))}>
@@ -145,7 +79,7 @@ export function ErpSidebar() {
                         <CollapsibleTrigger asChild>
                           <SidebarMenuButton className="w-full justify-between">
                             <span className="flex items-center gap-2">
-                              <item.icon className="size-4 text-muted-foreground" />
+                              <Icon className="size-4 text-muted-foreground" />
                               <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
                             </span>
                             <span className="flex items-center gap-1 group-data-[collapsible=icon]:hidden">
@@ -188,7 +122,7 @@ export function ErpSidebar() {
                       isActive={pathname === item.href}
                     >
                       <Link href={item.href!}>
-                        <item.icon className="size-4 text-muted-foreground" />
+                        <Icon className="size-4 text-muted-foreground" />
                         <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
                         {item.badge && (
                           <Badge className="ml-auto bg-[#22c55e] text-[#ffffff] text-[10px] px-1.5 py-0 h-4 border-0 group-data-[collapsible=icon]:hidden">
