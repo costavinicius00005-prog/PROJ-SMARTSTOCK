@@ -5,7 +5,24 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - db
+      api:
+        condition: service_started
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      API_INTERNAL_URL: http://api:8080
+    restart: always
+
+  api:
+    build: ./backend
+    container_name: meu-sistema-api
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
     env_file:
       - .env
     restart: always
@@ -16,11 +33,16 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 123456
-      POSTGRES_DB: meu_sistema
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: always
 
 volumes:
