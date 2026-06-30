@@ -1,0 +1,68 @@
+Esse comando cria as imagens, baixa o que for necessário e inicia os containers em segundo plano.
+
+Principais comandos Docker
+
+Ver os containers que estão rodando:
+
+docker ps
+
+Ver todos os containers, inclusive os parados:
+
+docker ps -a
+
+Subir os containers do projeto:
+
+docker compose up -d
+
+Subir reconstruindo a imagem:
+
+docker compose up -d --build
+
+Parar os containers do projeto:
+
+docker compose down
+
+Ver os logs dos containers:
+
+docker compose logs
+
+Ver os logs de um serviço específico, por exemplo a aplicação:
+
+docker compose logs app
+
+Ver os logs do banco:
+
+docker compose logs db
+
+Reiniciar os containers:
+
+docker compose restart
+
+Listar imagens baixadas no computador:
+
+docker images
+
+Remover containers parados:
+
+docker container prune
+
+Remover imagens não utilizadas:
+
+docker image prune
+
+Apagar os containers e também os volumes do projeto:
+
+docker compose down -v
+
+Esse último comando precisa de cuidado, porque o -v remove os volumes. Se o banco de dados estiver salvo em um volume, os dados podem ser apagados.
+
+Resumo
+
+No dia a dia, os comandos mais usados são:
+
+docker compose up -d --build
+docker ps
+docker compose logs
+docker compose down
+
+Com eles já é possível subir o projeto, verificar se está rodando, analisar erros e parar o ambiente quando necessário.
