@@ -1,12 +1,20 @@
 "use client"
 
-import { FormEvent } from "react"
+import { FormEvent, useState } from "react"
 import Link from "next/link"
 import type { ReactNode } from "react"
-import { ChevronRight, Loader2 } from "lucide-react"
+import { Check, ChevronRight, ChevronsUpDown, Loader2, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Command,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   Select,
   SelectContent,
@@ -15,17 +23,19 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { cn } from "@/lib/utils"
+import type { CatalogOption } from "@/src/domain/catalog/catalog-option"
 import type { ProductRegistration } from "@/src/domain/catalog/product-registration"
 import { useProductRegistration } from "@/src/presentation/hooks/use-product-registration"
 
 const initialProduct: ProductRegistration = {
   name: "",
-  category: "",
-  brand: "",
+  categoryId: "",
+  brandId: "",
   internalCode: "",
   variationType: "Produto simples",
   description: "",
-  unitOfMeasure: "",
+  unitOfMeasureId: "",
   costValue: 0,
   saleMarkup: 0,
   salePrice: 0,
@@ -33,14 +43,31 @@ const initialProduct: ProductRegistration = {
 }
 
 const sections = ["Dados gerais", "Unidade e codigo de barras", "Precos"]
-const categories = ["Materia-prima", "Mercadoria", "Produto acabado", "Servico"]
-const brands = ["Sem marca", "Marca propria", "Fornecedor principal", "Importado"]
-const units = ["UN", "CX", "KG", "L", "M", "PC"]
 const variationTypes = ["Produto simples", "Produto com variacao", "Kit de produtos"]
 
-export function ProductRegistrationContent() {
-  const { product, status, updateProduct, resetProduct, submitProduct } =
-    useProductRegistration(initialProduct)
+export function ProductRegistrationContent({
+  initialValue = initialProduct,
+  productId,
+  title = "Novo produto",
+}: {
+  initialValue?: ProductRegistration
+  productId?: string
+  title?: string
+}) {
+  const {
+    product,
+    status,
+    optionsStatus,
+    categories,
+    brands,
+    unitsOfMeasure,
+    updateProduct,
+    createAndSelectOption,
+    resetProduct,
+    submitProduct,
+  } = useProductRegistration(initialValue, productId)
+
+  const isEditing = Boolean(productId)
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -60,7 +87,7 @@ export function ProductRegistrationContent() {
       <div className="mx-auto grid max-w-[1580px] gap-5 lg:grid-cols-[312px_1fr]">
         <aside className="self-start rounded-md border border-border bg-card shadow-sm">
           <div className="border-b border-border px-6 py-5">
-            <h1 className="text-xl font-semibold text-foreground">Novo produto</h1>
+            <h1 className="text-xl font-semibold text-foreground">{title}</h1>
           </div>
 
           <nav className="px-3 py-3">
@@ -82,14 +109,16 @@ export function ProductRegistrationContent() {
           </nav>
 
           <div className="grid gap-3 px-3 pb-4">
-            <Button
-              type="button"
-              className="h-11 rounded-sm bg-[#22b889] text-white hover:bg-[#1da77c]"
-              onClick={handleSaveAndAddAnother}
-              disabled={status === "saving"}
-            >
-              Salvar e adicionar outro
-            </Button>
+            {!isEditing ? (
+              <Button
+                type="button"
+                className="h-11 rounded-sm bg-[#22b889] text-white hover:bg-[#1da77c]"
+                onClick={handleSaveAndAddAnother}
+                disabled={status === "saving"}
+              >
+                Salvar e adicionar outro
+              </Button>
+            ) : null}
             <Button
               type="submit"
               form="product-registration-form"
@@ -121,19 +150,23 @@ export function ProductRegistrationContent() {
 
               <div className="grid gap-5 md:grid-cols-3">
                 <Field label="Categoria" required>
-                  <OptionSelect
-                    value={product.category}
-                    placeholder="Selecione"
+                  <CreatableCombobox
+                    value={product.categoryId}
+                    placeholder="Selecione ou crie"
                     options={categories}
-                    onValueChange={(value) => updateProduct("category", value)}
+                    disabled={optionsStatus === "loading"}
+                    onValueChange={(value) => updateProduct("categoryId", value)}
+                    onCreate={(value) => createAndSelectOption("categories", value)}
                   />
                 </Field>
                 <Field label="Marca">
-                  <OptionSelect
-                    value={product.brand}
-                    placeholder="Selecione"
+                  <CreatableCombobox
+                    value={product.brandId}
+                    placeholder="Selecione ou crie"
                     options={brands}
-                    onValueChange={(value) => updateProduct("brand", value)}
+                    disabled={optionsStatus === "loading"}
+                    onValueChange={(value) => updateProduct("brandId", value)}
+                    onCreate={(value) => createAndSelectOption("brands", value)}
                   />
                 </Field>
                 <Field label="Codigo interno" required>
@@ -176,11 +209,13 @@ export function ProductRegistrationContent() {
             </CardHeader>
             <CardContent className="grid gap-5 md:grid-cols-2">
               <Field label="Unidade de medida" required>
-                <OptionSelect
-                  value={product.unitOfMeasure}
-                  placeholder="Selecione"
-                  options={units}
-                  onValueChange={(value) => updateProduct("unitOfMeasure", value)}
+                <CreatableCombobox
+                  value={product.unitOfMeasureId}
+                  placeholder="Selecione ou crie"
+                  options={unitsOfMeasure}
+                  disabled={optionsStatus === "loading"}
+                  onValueChange={(value) => updateProduct("unitOfMeasureId", value)}
+                  onCreate={(value) => createAndSelectOption("units-of-measure", value)}
                 />
               </Field>
               <Field label="Codigo de barras">
@@ -241,6 +276,11 @@ export function ProductRegistrationContent() {
               Nao foi possivel salvar o produto.
             </p>
           ) : null}
+          {optionsStatus === "error" ? (
+            <p className="rounded-sm border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
+              Nao foi possivel carregar categorias, marcas e unidades.
+            </p>
+          ) : null}
         </form>
       </div>
     </div>
@@ -263,6 +303,114 @@ function Field({
       </span>
       {children}
     </label>
+  )
+}
+
+function CreatableCombobox({
+  value,
+  placeholder,
+  options,
+  disabled,
+  onValueChange,
+  onCreate,
+}: {
+  value: string
+  placeholder: string
+  options: CatalogOption[]
+  disabled?: boolean
+  onValueChange: (value: string) => void
+  onCreate: (value: string) => Promise<void>
+}) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState("")
+  const [creating, setCreating] = useState(false)
+  const selectedOption = options.find((option) => option.id === value)
+  const cleanSearch = search.trim()
+  const canCreate =
+    cleanSearch.length > 0 &&
+    !options.some((option) =>
+      [option.label, option.value, option.name, option.acronym ?? ""]
+        .filter(Boolean)
+        .some((optionValue) => normalizeOptionText(optionValue) === normalizeOptionText(cleanSearch)),
+    )
+
+  const handleCreate = async () => {
+    if (!canCreate) return
+
+    setCreating(true)
+
+    try {
+      await onCreate(cleanSearch)
+      setSearch("")
+      setOpen(false)
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          disabled={disabled}
+          className="h-11 w-full justify-between rounded-sm bg-white px-3 font-normal"
+        >
+          <span className={cn("truncate", !selectedOption && "text-muted-foreground")}>
+            {selectedOption?.label ?? placeholder}
+          </span>
+          <ChevronsUpDown className="size-4 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command shouldFilter={false}>
+          <CommandInput
+            value={search}
+            onValueChange={setSearch}
+            placeholder="Pesquisar ou digitar novo valor"
+          />
+          <CommandList>
+            <CommandGroup>
+              {options
+                .filter((option) => {
+                  if (!cleanSearch) return true
+
+                  return [option.label, option.value, option.name, option.acronym ?? ""]
+                    .filter(Boolean)
+                    .some((optionValue) =>
+                      normalizeOptionText(optionValue).includes(normalizeOptionText(cleanSearch)),
+                    )
+                })
+                .map((option) => (
+                  <CommandItem
+                    key={option.id}
+                    value={option.id}
+                    onSelect={() => {
+                      onValueChange(option.id)
+                      setSearch("")
+                      setOpen(false)
+                    }}
+                  >
+                    <Check
+                      className={cn("size-4", option.id === value ? "opacity-100" : "opacity-0")}
+                    />
+                    <span className="truncate">{option.label}</span>
+                  </CommandItem>
+                ))}
+              {canCreate ? (
+                <CommandItem value={`create-${cleanSearch}`} onSelect={handleCreate}>
+                  {creating ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                  <span className="truncate">Criar "{cleanSearch}"</span>
+                </CommandItem>
+              ) : null}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -291,4 +439,13 @@ function OptionSelect({
       </SelectContent>
     </Select>
   )
+}
+
+function normalizeOptionText(value: string) {
+  return value
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase()
 }

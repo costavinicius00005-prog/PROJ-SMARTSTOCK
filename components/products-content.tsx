@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronUp,
   FileSpreadsheet,
+  Loader2,
   MoreVertical,
   Plus,
   RefreshCw,
@@ -41,6 +42,7 @@ export function ProductsContent() {
   const [search, setSearch] = useState("")
   const [products, setProducts] = useState<RegisteredProduct[]>([])
   const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading")
+  const [deletingProductId, setDeletingProductId] = useState<string | null>(null)
   const [sortColumn, setSortColumn] = useState<SortColumn>("name")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
 
@@ -105,6 +107,34 @@ export function ProductsContent() {
 
     setSortColumn(column)
     setSortDir("asc")
+  }
+
+  const deleteProduct = async (product: RegisteredProduct) => {
+    const canDelete = window.confirm(`Excluir o produto "${product.name || product.internalCode}"?`)
+
+    if (!canDelete) {
+      return
+    }
+
+    setDeletingProductId(product.id)
+
+    try {
+      const response = await fetch(`/api/products/${product.id}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Nao foi possivel excluir o produto.")
+      }
+
+      setProducts((currentProducts) =>
+        currentProducts.filter((currentProduct) => currentProduct.id !== product.id),
+      )
+    } catch {
+      setStatus("error")
+    } finally {
+      setDeletingProductId(null)
+    }
   }
 
   const SortIcon = ({ column }: { column: SortColumn }) => {
@@ -248,9 +278,19 @@ export function ProductsContent() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem>Editar</DropdownMenuItem>
-                          <DropdownMenuItem>Duplicar</DropdownMenuItem>
-                          <DropdownMenuItem>Ver detalhes</DropdownMenuItem>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/cadastros/produtos/${product.id}/editar`}>Editar</Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            disabled={deletingProductId === product.id}
+                            onClick={() => deleteProduct(product)}
+                          >
+                            {deletingProductId === product.id ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : null}
+                            Excluir
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

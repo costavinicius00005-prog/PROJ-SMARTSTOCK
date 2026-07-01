@@ -2,7 +2,10 @@ package com.smartstock.catalog.infrastructure.persistence.jpa;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -18,11 +21,13 @@ public class ProductJpaEntity {
   @Column(nullable = false, length = 160)
   private String name;
 
-  @Column(nullable = false, length = 100)
-  private String category;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "categoria_id", nullable = false)
+  private CategoryJpaEntity category;
 
-  @Column(length = 100)
-  private String brand;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "marca_id", nullable = false)
+  private BrandJpaEntity brand;
 
   @Column(name = "internal_code", nullable = false, unique = true, length = 80)
   private String internalCode;
@@ -33,8 +38,9 @@ public class ProductJpaEntity {
   @Column(columnDefinition = "text")
   private String description;
 
-  @Column(name = "unit_of_measure", nullable = false, length = 30)
-  private String unitOfMeasure;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "unidade_medida_id", nullable = false)
+  private UnitOfMeasureJpaEntity unitOfMeasure;
 
   @Column(name = "cost_value", nullable = false, precision = 12, scale = 2)
   private BigDecimal costValue;
@@ -60,12 +66,12 @@ public class ProductJpaEntity {
   public ProductJpaEntity(
       UUID id,
       String name,
-      String category,
-      String brand,
+      CategoryJpaEntity category,
+      BrandJpaEntity brand,
       String internalCode,
       String variationType,
       String description,
-      String unitOfMeasure,
+      UnitOfMeasureJpaEntity unitOfMeasure,
       BigDecimal costValue,
       BigDecimal saleMarkup,
       BigDecimal salePrice,
@@ -96,11 +102,11 @@ public class ProductJpaEntity {
     return name;
   }
 
-  public String getCategory() {
+  public CategoryJpaEntity getCategory() {
     return category;
   }
 
-  public String getBrand() {
+  public BrandJpaEntity getBrand() {
     return brand;
   }
 
@@ -116,7 +122,7 @@ public class ProductJpaEntity {
     return description;
   }
 
-  public String getUnitOfMeasure() {
+  public UnitOfMeasureJpaEntity getUnitOfMeasure() {
     return unitOfMeasure;
   }
 

@@ -1,11 +1,11 @@
 export interface ProductRegistration {
   name: string
-  category: string
-  brand: string
+  categoryId: string
+  brandId: string
   internalCode: string
   variationType: string
   description: string
-  unitOfMeasure: string
+  unitOfMeasureId: string
   costValue: number
   saleMarkup: number
   salePrice: number

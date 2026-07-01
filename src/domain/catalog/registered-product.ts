@@ -2,4 +2,7 @@ import type { ProductRegistration } from "@/src/domain/catalog/product-registrat
 
 export interface RegisteredProduct extends ProductRegistration {
   id: string
+  category: string
+  brand: string
+  unitOfMeasure: string
 }
