@@ -1,0 +1,2 @@
+ALTER TABLE clients
+  ALTER COLUMN state TYPE VARCHAR(80);

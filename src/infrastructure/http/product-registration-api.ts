@@ -8,7 +8,7 @@ export const productRegistrationApi: ProductRegistrationGateway = {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(product),
+      body: JSON.stringify(toProductPayload(product)),
     })
 
     if (!response.ok) {
@@ -22,11 +22,24 @@ export const productRegistrationApi: ProductRegistrationGateway = {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(product),
+      body: JSON.stringify(toProductPayload(product)),
     })
 
     if (!response.ok) {
       throw new Error("Nao foi possivel atualizar o produto.")
     }
   },
+}
+
+function toProductPayload(product: ProductRegistration) {
+  return {
+    ...product,
+    costValue: toNumber(product.costValue),
+    saleMarkup: toNumber(product.saleMarkup),
+    salePrice: toNumber(product.salePrice),
+  }
+}
+
+function toNumber(value: number | "") {
+  return value === "" ? 0 : value
 }

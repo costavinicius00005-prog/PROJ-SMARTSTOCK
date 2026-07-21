@@ -1,6 +1,6 @@
 "use client"
 
-import { FormEvent, useState } from "react"
+import { FocusEvent, FormEvent, useState } from "react"
 import Link from "next/link"
 import type { ReactNode } from "react"
 import { Check, ChevronRight, ChevronsUpDown, Loader2, Plus } from "lucide-react"
@@ -44,6 +44,18 @@ const initialProduct: ProductRegistration = {
 
 const sections = ["Dados gerais", "Unidade e codigo de barras", "Precos"]
 const variationTypes = ["Produto simples", "Produto com variacao", "Kit de produtos"]
+const numberInputClassName =
+  "h-11 rounded-sm bg-white [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+
+function selectZeroValue(event: FocusEvent<HTMLInputElement>) {
+  if (event.currentTarget.value === "0") {
+    event.currentTarget.select()
+  }
+}
+
+function parsePricingInput(value: string) {
+  return value === "" ? "" : Number(value)
+}
 
 export function ProductRegistrationContent({
   initialValue = initialProduct,
@@ -239,18 +251,20 @@ export function ProductRegistrationContent({
                   min="0"
                   step="0.01"
                   value={product.costValue}
-                  onChange={(event) => updateProduct("costValue", Number(event.target.value))}
-                  className="h-11 rounded-sm bg-white"
+                  onFocus={selectZeroValue}
+                  onChange={(event) => updateProduct("costValue", parsePricingInput(event.target.value))}
+                  className={numberInputClassName}
                 />
               </Field>
-              <Field label="Markup de venda" required>
+              <Field label="Markup de venda (%)" required>
                 <Input
                   type="number"
                   min="0"
-                  step="0.0001"
+                  step="0.01"
                   value={product.saleMarkup}
-                  onChange={(event) => updateProduct("saleMarkup", Number(event.target.value))}
-                  className="h-11 rounded-sm bg-white"
+                  onFocus={selectZeroValue}
+                  onChange={(event) => updateProduct("saleMarkup", parsePricingInput(event.target.value))}
+                  className={numberInputClassName}
                 />
               </Field>
               <Field label="Preco de venda" required>
@@ -259,8 +273,9 @@ export function ProductRegistrationContent({
                   min="0"
                   step="0.01"
                   value={product.salePrice}
-                  onChange={(event) => updateProduct("salePrice", Number(event.target.value))}
-                  className="h-11 rounded-sm bg-white"
+                  onFocus={selectZeroValue}
+                  onChange={(event) => updateProduct("salePrice", parsePricingInput(event.target.value))}
+                  className={numberInputClassName}
                 />
               </Field>
             </CardContent>

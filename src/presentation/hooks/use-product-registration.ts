@@ -3,7 +3,14 @@
 import { useEffect, useState } from "react"
 import { RegisterProduct } from "@/src/application/use-cases/catalog/register-product"
 import type { CatalogOption } from "@/src/domain/catalog/catalog-option"
-import type { ProductRegistration } from "@/src/domain/catalog/product-registration"
+import {
+  calculateSaleMarkup,
+  calculateSalePrice,
+} from "@/src/domain/catalog/product-pricing"
+import type {
+  ProductPricingFieldValue,
+  ProductRegistration,
+} from "@/src/domain/catalog/product-registration"
 import {
   createCatalogOption,
   listCatalogOptions,
@@ -48,10 +55,7 @@ export function useProductRegistration(initialProduct: ProductRegistration, prod
     field: Field,
     value: ProductRegistration[Field],
   ) => {
-    setProduct((current) => ({
-      ...current,
-      [field]: value,
-    }))
+    setProduct((current) => applyProductChange(current, field, value))
   }
 
   const resetProduct = () => {
@@ -113,6 +117,53 @@ export function useProductRegistration(initialProduct: ProductRegistration, prod
     resetProduct,
     submitProduct,
   }
+}
+
+function applyProductChange<Field extends keyof ProductRegistration>(
+  product: ProductRegistration,
+  field: Field,
+  value: ProductRegistration[Field],
+): ProductRegistration {
+  const nextProduct = {
+    ...product,
+    [field]: value,
+  }
+
+  if (field === "costValue") {
+    const costValue = toPricingNumber(value as ProductPricingFieldValue)
+    const saleMarkup = toPricingNumber(product.saleMarkup)
+
+    return {
+      ...nextProduct,
+      salePrice: value === "" ? "" : calculateSalePrice(costValue, saleMarkup),
+    }
+  }
+
+  if (field === "saleMarkup") {
+    const costValue = toPricingNumber(product.costValue)
+    const saleMarkup = toPricingNumber(value as ProductPricingFieldValue)
+
+    return {
+      ...nextProduct,
+      salePrice: value === "" ? "" : calculateSalePrice(costValue, saleMarkup),
+    }
+  }
+
+  if (field === "salePrice") {
+    const costValue = toPricingNumber(product.costValue)
+    const salePrice = toPricingNumber(value as ProductPricingFieldValue)
+
+    return {
+      ...nextProduct,
+      saleMarkup: value === "" ? "" : calculateSaleMarkup(costValue, salePrice),
+    }
+  }
+
+  return nextProduct
+}
+
+function toPricingNumber(value: ProductPricingFieldValue) {
+  return value === "" ? 0 : value
 }
 
 function upsertOption(options: CatalogOption[], option: CatalogOption) {

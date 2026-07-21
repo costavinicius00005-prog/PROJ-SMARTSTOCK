@@ -1,3 +1,5 @@
+export type ProductPricingFieldValue = number | ""
+
 export interface ProductRegistration {
   name: string
   categoryId: string
@@ -6,8 +8,8 @@ export interface ProductRegistration {
   variationType: string
   description: string
   unitOfMeasureId: string
-  costValue: number
-  saleMarkup: number
-  salePrice: number
+  costValue: ProductPricingFieldValue
+  saleMarkup: ProductPricingFieldValue
+  salePrice: ProductPricingFieldValue
   barcode: string
 }
