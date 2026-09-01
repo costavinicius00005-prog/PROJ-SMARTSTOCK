@@ -7,6 +7,7 @@ import com.smartstock.partners.infrastructure.persistence.jpa.SpringDataClientRe
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import java.util.Optional;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,12 @@ public class PostgresClientRepositoryAdapter implements ClientRepositoryPort {
         .map(ClientJpaMapper::toDomain)
         .sorted(Comparator.comparing(Client::name))
         .toList();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<Client> findById(UUID id) {
+    return repository.findById(id).map(ClientJpaMapper::toDomain);
   }
 
   @Override
