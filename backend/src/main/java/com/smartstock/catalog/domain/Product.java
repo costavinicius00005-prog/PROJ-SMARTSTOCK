@@ -18,5 +18,7 @@ public record Product(
     BigDecimal costValue,
     BigDecimal saleMarkup,
     BigDecimal salePrice,
-    String barcode) {
+    String barcode,
+    BigDecimal stockQuantity,
+    BigDecimal reservedQuantity) {
 }

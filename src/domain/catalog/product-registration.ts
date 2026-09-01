@@ -12,4 +12,10 @@ export interface ProductRegistration {
   saleMarkup: ProductPricingFieldValue
   salePrice: ProductPricingFieldValue
   barcode: string
+  composition: ProductCompositionInput[]
+}
+
+export interface ProductCompositionInput {
+  productId: string
+  quantity: number
 }

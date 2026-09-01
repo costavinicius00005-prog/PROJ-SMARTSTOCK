@@ -7,20 +7,25 @@ import com.smartstock.catalog.domain.Product;
 import com.smartstock.catalog.domain.UnitOfMeasure;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class CreateProductUseCase {
 
   private final ProductRepositoryPort productRepository;
   private final ProductReferenceResolver referenceResolver;
+  private final ProductCompositionService compositionService;
 
   public CreateProductUseCase(
       ProductRepositoryPort productRepository,
-      ProductReferenceResolver referenceResolver) {
+      ProductReferenceResolver referenceResolver,
+      ProductCompositionService compositionService) {
     this.productRepository = productRepository;
     this.referenceResolver = referenceResolver;
+    this.compositionService = compositionService;
   }
 
+  @Transactional
   public Product execute(CreateProductCommand command) {
     Category category = referenceResolver.resolveCategory(command);
     Brand brand = referenceResolver.resolveBrand(command);
@@ -41,8 +46,12 @@ public class CreateProductUseCase {
         command.costValue(),
         command.saleMarkup(),
         command.salePrice(),
-        ProductInputSanitizer.blankToNull(command.barcode()));
+        ProductInputSanitizer.blankToNull(command.barcode()),
+        java.math.BigDecimal.ZERO,
+        java.math.BigDecimal.ZERO);
 
-    return productRepository.save(product);
+    Product saved = productRepository.save(product);
+    compositionService.replace(saved.id(), command.composition());
+    return saved;
   }
 }

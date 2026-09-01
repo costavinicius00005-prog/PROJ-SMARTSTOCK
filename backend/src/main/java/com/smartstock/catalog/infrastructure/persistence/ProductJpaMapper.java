@@ -43,6 +43,8 @@ public final class ProductJpaMapper {
         product.saleMarkup(),
         product.salePrice(),
         product.barcode(),
+        product.stockQuantity(),
+        product.reservedQuantity(),
         createdAt,
         updatedAt);
   }
@@ -63,6 +65,8 @@ public final class ProductJpaMapper {
         entity.getCostValue(),
         entity.getSaleMarkup(),
         entity.getSalePrice(),
-        entity.getBarcode());
+        entity.getBarcode(),
+        entity.getStockQuantity(),
+        entity.getReservedQuantity());
   }
 }

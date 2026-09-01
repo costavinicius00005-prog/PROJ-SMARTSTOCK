@@ -3,7 +3,7 @@
 import { FocusEvent, FormEvent, useState } from "react"
 import Link from "next/link"
 import type { ReactNode } from "react"
-import { Check, ChevronRight, ChevronsUpDown, Loader2, Plus } from "lucide-react"
+import { Check, ChevronRight, ChevronsUpDown, Loader2, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import type { CatalogOption } from "@/src/domain/catalog/catalog-option"
 import type { ProductRegistration } from "@/src/domain/catalog/product-registration"
@@ -40,9 +41,10 @@ const initialProduct: ProductRegistration = {
   saleMarkup: 0,
   salePrice: 0,
   barcode: "",
+  composition: [],
 }
 
-const sections = ["Dados gerais", "Unidade e codigo de barras", "Precos"]
+const sections = ["Dados gerais", "Unidade e codigo de barras", "Precos", "Composicao"]
 const variationTypes = ["Produto simples", "Produto com variacao", "Kit de produtos"]
 const numberInputClassName =
   "h-11 rounded-sm bg-white [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
@@ -73,6 +75,7 @@ export function ProductRegistrationContent({
     categories,
     brands,
     unitsOfMeasure,
+    availableProducts,
     updateProduct,
     createAndSelectOption,
     resetProduct,
@@ -281,6 +284,33 @@ export function ProductRegistrationContent({
             </CardContent>
           </Card>
 
+          <Card id="composicao" className="rounded-md border-border bg-card shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-xl font-medium text-[#17324d]">Composicao</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <Alert>
+                <AlertDescription>
+                  Produtos sem componentes controlam o proprio estoque. Alteracoes nesta composicao
+                  valem apenas para operacoes futuras e nao modificam historicos existentes.
+                </AlertDescription>
+              </Alert>
+              <CompositionEditor
+                value={product.composition}
+                products={availableProducts.filter((candidate) => candidate.id !== productId)}
+                onChange={(composition) => updateProduct("composition", composition)}
+              />
+              {product.composition.length > 0 ? (
+                <div className="rounded-sm bg-primary/5 px-3 py-2 text-sm text-[#17324d]">
+                  Custo estimado pelos componentes: <strong>{formatCurrency(product.composition.reduce((total, item) => {
+                    const component = availableProducts.find((candidate) => candidate.id === item.productId)
+                    return total + (component?.estimatedCompositionCost ?? component?.costValue ?? 0) * item.quantity
+                  }, 0))}</strong>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+
           {status === "saved" ? (
             <p className="rounded-sm border border-[#22b889]/40 bg-[#22b889]/10 px-3 py-2 text-sm font-medium text-[#137557]">
               Produto salvo com sucesso.
@@ -300,6 +330,44 @@ export function ProductRegistrationContent({
       </div>
     </div>
   )
+}
+
+function CompositionEditor({ value, products, onChange }: {
+  value: ProductRegistration["composition"]
+  products: import("@/src/domain/catalog/registered-product").RegisteredProduct[]
+  onChange: (value: ProductRegistration["composition"]) => void
+}) {
+  const [selected, setSelected] = useState("")
+  const candidates = products.filter((product) => !value.some((item) => item.productId === product.id))
+  const add = () => {
+    if (!selected) return
+    onChange([...value, { productId: selected, quantity: 1 }])
+    setSelected("")
+  }
+  return <div className="grid gap-3">
+    <div className="flex flex-col gap-2 sm:flex-row">
+      <Select value={selected} onValueChange={setSelected}>
+        <SelectTrigger className="h-11 flex-1 rounded-sm bg-white"><SelectValue placeholder="Pesquisar produto por codigo ou descricao" /></SelectTrigger>
+        <SelectContent>{candidates.map((item) => <SelectItem key={item.id} value={item.id}>{item.internalCode} - {item.name}</SelectItem>)}</SelectContent>
+      </Select>
+      <Button type="button" variant="outline" className="h-11 rounded-sm" onClick={add} disabled={!selected}><Plus className="size-4" /> Adicionar componente</Button>
+    </div>
+    {value.length === 0 ? <p className="rounded-sm border border-dashed p-6 text-center text-sm text-muted-foreground">Nenhum componente adicionado. Este produto sera tratado como simples.</p> : null}
+    {value.map((item) => {
+      const component = products.find((product) => product.id === item.productId)
+      return <div key={item.productId} className="grid items-end gap-3 rounded-sm border p-3 md:grid-cols-[1fr_150px_100px_120px_40px]">
+        <div><p className="text-xs text-muted-foreground">Codigo / componente</p><p className="text-sm font-medium">{component?.internalCode ?? "-"} - {component?.name ?? "Produto"}</p></div>
+        <Field label="Quantidade" required><Input type="number" min="0.0001" step="0.0001" value={item.quantity} onChange={(event) => onChange(value.map((current) => current.productId === item.productId ? {...current, quantity: Number(event.target.value)} : current))} className="h-10 rounded-sm bg-white" /></Field>
+        <div><p className="text-xs text-muted-foreground">Unidade</p><p className="h-10 py-2 text-sm">{component?.unitOfMeasure ?? "-"}</p></div>
+        <div><p className="text-xs text-muted-foreground">Disponivel / permite</p><p className="h-10 py-2 text-sm">{component?.stockAvailable ?? 0} / {Math.floor((component?.stockAvailable ?? 0) / item.quantity)}</p></div>
+        <Button type="button" variant="ghost" size="icon" onClick={() => onChange(value.filter((current) => current.productId !== item.productId))}><Trash2 className="size-4 text-destructive" /></Button>
+      </div>
+    })}
+  </div>
+}
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value)
 }
 
 function Field({

@@ -17,5 +17,6 @@ public record CreateProductRequest(
     BigDecimal costValue,
     BigDecimal saleMarkup,
     BigDecimal salePrice,
-    String barcode) {
+    String barcode,
+    java.util.List<com.smartstock.catalog.domain.ProductComponent> composition) {
 }

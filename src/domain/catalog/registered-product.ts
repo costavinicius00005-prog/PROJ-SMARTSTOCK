@@ -9,4 +9,18 @@ export interface RegisteredProduct
   costValue: number
   saleMarkup: number
   salePrice: number
+  stockAvailable: number
+  estimatedCompositionCost: number
+  composition: ProductCompositionDetail[]
+}
+
+export interface ProductCompositionDetail {
+  productId: string
+  internalCode: string
+  name: string
+  unitOfMeasure: string
+  quantity: number
+  stockAvailable: number
+  producibleQuantity: number
+  costValue: number
 }

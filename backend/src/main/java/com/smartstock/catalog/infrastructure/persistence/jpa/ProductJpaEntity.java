@@ -54,6 +54,12 @@ public class ProductJpaEntity {
   @Column(unique = true, length = 80)
   private String barcode;
 
+  @Column(name = "stock_quantity", nullable = false, precision = 14, scale = 4)
+  private BigDecimal stockQuantity;
+
+  @Column(name = "reserved_quantity", nullable = false, precision = 14, scale = 4)
+  private BigDecimal reservedQuantity;
+
   @Column(name = "created_at", nullable = false)
   private OffsetDateTime createdAt;
 
@@ -76,6 +82,8 @@ public class ProductJpaEntity {
       BigDecimal saleMarkup,
       BigDecimal salePrice,
       String barcode,
+      BigDecimal stockQuantity,
+      BigDecimal reservedQuantity,
       OffsetDateTime createdAt,
       OffsetDateTime updatedAt) {
     this.id = id;
@@ -90,6 +98,8 @@ public class ProductJpaEntity {
     this.saleMarkup = saleMarkup;
     this.salePrice = salePrice;
     this.barcode = barcode;
+    this.stockQuantity = stockQuantity;
+    this.reservedQuantity = reservedQuantity;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -141,6 +151,9 @@ public class ProductJpaEntity {
   public String getBarcode() {
     return barcode;
   }
+
+  public BigDecimal getStockQuantity() { return stockQuantity; }
+  public BigDecimal getReservedQuantity() { return reservedQuantity; }
 
   public OffsetDateTime getCreatedAt() {
     return createdAt;

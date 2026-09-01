@@ -224,6 +224,7 @@ export function ProductsContent() {
                 </SortableHead>
                 <TableHead>Unidade</TableHead>
                 <TableHead>Codigo de barras</TableHead>
+                <TableHead>Estoque disponivel</TableHead>
                 <SortableHead column="salePrice" onSort={handleSort} sortIcon={<SortIcon column="salePrice" />}>
                   Preco de venda
                 </SortableHead>
@@ -233,7 +234,7 @@ export function ProductsContent() {
             <TableBody>
               {status === "loading" ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-28 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={10} className="h-28 text-center text-sm text-muted-foreground">
                     Carregando produtos...
                   </TableCell>
                 </TableRow>
@@ -241,7 +242,7 @@ export function ProductsContent() {
 
               {status === "error" ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-28 text-center text-sm text-destructive">
+                  <TableCell colSpan={10} className="h-28 text-center text-sm text-destructive">
                     Nao foi possivel carregar os produtos.
                   </TableCell>
                 </TableRow>
@@ -249,7 +250,7 @@ export function ProductsContent() {
 
               {status === "loaded" && sortedProducts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-28 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={10} className="h-28 text-center text-sm text-muted-foreground">
                     Nenhum produto cadastrado.
                   </TableCell>
                 </TableRow>
@@ -267,6 +268,7 @@ export function ProductsContent() {
                     <TableCell className="text-sm text-muted-foreground">{product.variationType || "-"}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{product.unitOfMeasure}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{product.barcode || "-"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{product.stockAvailable}</TableCell>
                     <TableCell className="text-sm text-foreground">
                       {formatCurrency(product.salePrice)}
                     </TableCell>

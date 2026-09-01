@@ -1,0 +1,2 @@
+-- Marcador da migration historica aplicada antes de seu arquivo-fonte ser removido.
+-- Mantido para preservar a sequencia Flyway; apresentacoes comerciais nao fazem parte do modelo atual.

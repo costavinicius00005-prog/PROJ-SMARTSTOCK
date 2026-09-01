@@ -16,6 +16,7 @@ import {
   listCatalogOptions,
 } from "@/src/infrastructure/http/catalog-options-api"
 import { productRegistrationApi } from "@/src/infrastructure/http/product-registration-api"
+import type { RegisteredProduct } from "@/src/domain/catalog/registered-product"
 
 const registerProduct = new RegisterProduct(productRegistrationApi)
 type OptionGroup = "categories" | "brands" | "units-of-measure"
@@ -27,21 +28,26 @@ export function useProductRegistration(initialProduct: ProductRegistration, prod
   const [categories, setCategories] = useState<CatalogOption[]>([])
   const [brands, setBrands] = useState<CatalogOption[]>([])
   const [unitsOfMeasure, setUnitsOfMeasure] = useState<CatalogOption[]>([])
+  const [availableProducts, setAvailableProducts] = useState<RegisteredProduct[]>([])
 
   useEffect(() => {
     const loadOptions = async () => {
       setOptionsStatus("loading")
 
       try {
-        const [loadedCategories, loadedBrands, loadedUnits] = await Promise.all([
+        const [loadedCategories, loadedBrands, loadedUnits, productsResponse] = await Promise.all([
           listCatalogOptions("categories"),
           listCatalogOptions("brands"),
           listCatalogOptions("units-of-measure"),
+          fetch("/api/products", { cache: "no-store" }),
         ])
+
+        if (!productsResponse.ok) throw new Error("Nao foi possivel carregar produtos.")
 
         setCategories(loadedCategories)
         setBrands(loadedBrands)
         setUnitsOfMeasure(loadedUnits)
+        setAvailableProducts(await productsResponse.json())
         setOptionsStatus("loaded")
       } catch {
         setOptionsStatus("error")
@@ -83,7 +89,8 @@ export function useProductRegistration(initialProduct: ProductRegistration, prod
   }
 
   const submitProduct = async () => {
-    if (!product.categoryId || !product.brandId || !product.unitOfMeasureId) {
+    if (!product.categoryId || !product.brandId || !product.unitOfMeasureId ||
+        product.composition.some((item) => !item.productId || item.quantity <= 0)) {
       setStatus("error")
       return false
     }
@@ -112,6 +119,7 @@ export function useProductRegistration(initialProduct: ProductRegistration, prod
     categories,
     brands,
     unitsOfMeasure,
+    availableProducts,
     updateProduct,
     createAndSelectOption,
     resetProduct,

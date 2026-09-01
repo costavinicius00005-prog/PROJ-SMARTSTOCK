@@ -4,6 +4,7 @@ import com.smartstock.catalog.application.usecase.CreateProductCommand;
 import com.smartstock.catalog.application.usecase.CreateProductUseCase;
 import com.smartstock.catalog.application.usecase.DeleteProductUseCase;
 import com.smartstock.catalog.application.usecase.GetProductUseCase;
+import com.smartstock.catalog.application.usecase.GetProductCompositionUseCase;
 import com.smartstock.catalog.application.usecase.ListProductsUseCase;
 import com.smartstock.catalog.application.usecase.UpdateProductUseCase;
 import com.smartstock.catalog.domain.Product;
@@ -30,30 +31,33 @@ public class ProductController {
   private final GetProductUseCase getProductUseCase;
   private final UpdateProductUseCase updateProductUseCase;
   private final DeleteProductUseCase deleteProductUseCase;
+  private final GetProductCompositionUseCase getComposition;
 
   public ProductController(
       CreateProductUseCase createProductUseCase,
       ListProductsUseCase listProductsUseCase,
       GetProductUseCase getProductUseCase,
       UpdateProductUseCase updateProductUseCase,
-      DeleteProductUseCase deleteProductUseCase) {
+      DeleteProductUseCase deleteProductUseCase,
+      GetProductCompositionUseCase getComposition) {
     this.createProductUseCase = createProductUseCase;
     this.listProductsUseCase = listProductsUseCase;
     this.getProductUseCase = getProductUseCase;
     this.updateProductUseCase = updateProductUseCase;
     this.deleteProductUseCase = deleteProductUseCase;
+    this.getComposition = getComposition;
   }
 
   @GetMapping
   public List<ProductResponse> list() {
     return listProductsUseCase.execute().stream()
-        .map(ProductResponse::fromDomain)
+        .map(this::toResponse)
         .toList();
   }
 
   @GetMapping("/{productId}")
   public ProductResponse get(@PathVariable UUID productId) {
-    return ProductResponse.fromDomain(getProductUseCase.execute(productId));
+    return toResponse(getProductUseCase.execute(productId));
   }
 
   @PostMapping
@@ -61,7 +65,7 @@ public class ProductController {
   public ProductResponse create(@RequestBody CreateProductRequest request) {
     Product product = createProductUseCase.execute(toCommand(request));
 
-    return ProductResponse.fromDomain(product);
+    return toResponse(product);
   }
 
   @PutMapping("/{productId}")
@@ -70,7 +74,7 @@ public class ProductController {
       @RequestBody CreateProductRequest request) {
     Product product = updateProductUseCase.execute(productId, toCommand(request));
 
-    return ProductResponse.fromDomain(product);
+    return toResponse(product);
   }
 
   @DeleteMapping("/{productId}")
@@ -95,6 +99,12 @@ public class ProductController {
         request.costValue(),
         request.saleMarkup(),
         request.salePrice(),
-        request.barcode());
+        request.barcode(),
+        request.composition());
+  }
+
+  private ProductResponse toResponse(Product product) {
+    return ProductResponse.fromDomain(product, getComposition.availability(product.id()),
+        getComposition.estimatedCost(product.id()), getComposition.items(product.id()));
   }
 }
