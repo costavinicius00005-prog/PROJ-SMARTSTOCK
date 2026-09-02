@@ -1,129 +1,72 @@
 "use client"
 
-import { useState } from "react"
-import { Search, MoreVertical, Plus, Phone, Mail } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { Loader2, Mail, MoreVertical, Phone, Plus, Search } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { appUseCases } from "@/src/composition/use-cases"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import type { RegisteredSupplier } from "@/src/domain/partners/registered-supplier"
 import { entityStatusClassName } from "@/src/presentation/formatters/status-styles"
-import { useSearch } from "@/src/presentation/hooks/use-search"
 
 export function SuppliersContent() {
   const [search, setSearch] = useState("")
-  const suppliers = appUseCases.listSuppliers()
-  const filtered = useSearch(suppliers, search, (supplier, normalizedSearch) =>
-    supplier.name.toLowerCase().includes(normalizedSearch) ||
-    supplier.cpfCnpj.includes(normalizedSearch)
-  )
+  const [suppliers, setSuppliers] = useState<RegisteredSupplier[]>([])
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading")
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  return (
-    <div className="p-6">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-        <span>Cadastros</span>
-        <span>{">"}</span>
-        <span className="text-foreground font-medium">Fornecedores</span>
-      </div>
+  useEffect(() => {
+    async function load() {
+      setStatus("loading")
+      try {
+        const response = await fetch("/api/suppliers", { cache: "no-store" })
+        if (!response.ok) throw new Error()
+        setSuppliers(await response.json() as RegisteredSupplier[])
+        setStatus("loaded")
+      } catch { setStatus("error") }
+    }
+    void load()
+  }, [])
 
-      <div className="flex items-center justify-between mb-4">
-        <div className="relative w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome ou CPF/CNPJ"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-card"
-          />
-        </div>
-        <Button className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
-          <Plus className="size-4" />
-          Novo fornecedor
-        </Button>
-      </div>
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    if (!query) return suppliers
+    return suppliers.filter((supplier) =>
+      [supplier.name, supplier.cpf, supplier.cnpj, supplier.email, supplier.primaryPhone, supplier.city]
+        .some((value) => (value ?? "").toLowerCase().includes(query)))
+  }, [search, suppliers])
 
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-semibold text-foreground">Fornecedores cadastrados</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="pl-4 text-foreground font-medium">Nome</TableHead>
-                <TableHead className="text-foreground font-medium">CPF/CNPJ</TableHead>
-                <TableHead className="text-foreground font-medium">Telefone</TableHead>
-                <TableHead className="text-foreground font-medium">E-mail</TableHead>
-                <TableHead className="text-foreground font-medium">Cidade</TableHead>
-                <TableHead className="text-foreground font-medium">Situacao</TableHead>
-                <TableHead className="text-center text-foreground font-medium">Acoes</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((supplier) => (
-                <TableRow key={supplier.id} className="hover:bg-muted/30">
-                  <TableCell className="pl-4 text-sm font-medium text-foreground">{supplier.name}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{supplier.cpfCnpj}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Phone className="size-3" />
-                      {supplier.phone}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Mail className="size-3" />
-                      {supplier.email}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{supplier.city}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={entityStatusClassName(supplier.status)}
-                    >
-                      {supplier.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="size-7">
-                          <MoreVertical className="size-3.5 text-muted-foreground" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>Editar</DropdownMenuItem>
-                        <DropdownMenuItem>Ver detalhes</DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive">Desativar</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-primary/5">
-            <span className="text-sm font-semibold text-foreground">
-              TOTAL: <span className="font-normal">{suppliers.length} Fornecedores</span>
-            </span>
-          </div>
-        </CardContent>
-      </Card>
+  async function deleteSupplier(supplier: RegisteredSupplier) {
+    if (!window.confirm(`Excluir o fornecedor "${supplier.name}"?`)) return
+    setDeletingId(supplier.id)
+    try {
+      const response = await fetch(`/api/suppliers/${supplier.id}`, { method: "DELETE" })
+      if (!response.ok) throw new Error()
+      setSuppliers((current) => current.filter(({ id }) => id !== supplier.id))
+    } catch { setStatus("error") } finally { setDeletingId(null) }
+  }
+
+  return <div className="p-6">
+    <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground"><span>Cadastros</span><span>{">"}</span><span className="font-medium text-foreground">Fornecedores</span></div>
+    <div className="mb-4 flex items-center justify-between">
+      <div className="relative w-80"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Buscar por nome ou CPF/CNPJ" value={search} onChange={(event) => setSearch(event.target.value)} className="bg-card pl-9" /></div>
+      <Button asChild className="gap-2"><Link href="/cadastros/fornecedores/novo"><Plus className="size-4" />Novo fornecedor</Link></Button>
     </div>
-  )
+    <Card><CardHeader className="pb-3"><CardTitle className="text-lg">Fornecedores cadastrados</CardTitle></CardHeader><CardContent className="p-0">
+      <Table><TableHeader><TableRow><TableHead className="pl-4">Nome</TableHead><TableHead>CPF/CNPJ</TableHead><TableHead>Telefone</TableHead><TableHead>E-mail</TableHead><TableHead>Cidade</TableHead><TableHead>Situacao</TableHead><TableHead className="text-center">Acoes</TableHead></TableRow></TableHeader><TableBody>
+        {status === "loading" ? <TableRow><TableCell colSpan={7} className="h-28 text-center text-muted-foreground">Carregando fornecedores...</TableCell></TableRow> : null}
+        {status === "error" ? <TableRow><TableCell colSpan={7} className="h-28 text-center text-destructive">Nao foi possivel carregar os fornecedores.</TableCell></TableRow> : null}
+        {status === "loaded" && filtered.length === 0 ? <TableRow><TableCell colSpan={7} className="h-28 text-center text-muted-foreground">Nenhum fornecedor cadastrado.</TableCell></TableRow> : null}
+        {status === "loaded" && filtered.map((supplier) => <TableRow key={supplier.id}>
+          <TableCell className="pl-4 font-medium">{supplier.name}</TableCell><TableCell>{supplier.cpf ?? supplier.cnpj ?? "-"}</TableCell>
+          <TableCell><span className="flex items-center gap-1"><Phone className="size-3" />{supplier.primaryPhone ?? "-"}</span></TableCell><TableCell><span className="flex items-center gap-1"><Mail className="size-3" />{supplier.email ?? "-"}</span></TableCell>
+          <TableCell>{[supplier.city, supplier.state].filter(Boolean).join(" - ") || "-"}</TableCell><TableCell><Badge variant="outline" className={entityStatusClassName("Ativo")}>Ativo</Badge></TableCell>
+          <TableCell className="text-center"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="size-3.5" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem>Editar</DropdownMenuItem><DropdownMenuItem>Ver detalhes</DropdownMenuItem><DropdownMenuItem className="text-destructive focus:text-destructive" disabled={deletingId === supplier.id} onClick={() => deleteSupplier(supplier)}>{deletingId === supplier.id ? <Loader2 className="size-3.5 animate-spin" /> : null}Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
+        </TableRow>)}
+      </TableBody></Table><div className="border-t bg-primary/5 px-4 py-3 text-sm font-semibold">TOTAL: <span className="font-normal">{filtered.length} Fornecedores</span></div>
+    </CardContent></Card>
+  </div>
 }

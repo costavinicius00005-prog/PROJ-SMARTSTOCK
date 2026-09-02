@@ -20,8 +20,13 @@ import { useClientRegistration } from "@/src/presentation/hooks/use-client-regis
 const sections = ["Dados gerais", "Dados adicionais", "Endereco"]
 const clientTypes: ClientType[] = ["Pessoa juridica", "Pessoa fisica"]
 
-export function ClientRegistrationContent() {
-  const { client, status, errorMessage, updateClient, resetClient, submitClient } = useClientRegistration()
+type PartnerKind = "client" | "supplier"
+
+export function ClientRegistrationContent({ partnerKind = "client" }: { partnerKind?: PartnerKind }) {
+  const isSupplier = partnerKind === "supplier"
+  const partnerLabel = isSupplier ? "fornecedor" : "cliente"
+  const listHref = isSupplier ? "/cadastros/fornecedores" : "/cadastros/clientes"
+  const { client, status, errorMessage, updateClient, resetClient, submitClient } = useClientRegistration(partnerKind)
   const isIndividual = client.clientType === "Pessoa fisica"
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -42,7 +47,7 @@ export function ClientRegistrationContent() {
       <div className="mx-auto grid max-w-[1580px] gap-5 lg:grid-cols-[312px_1fr]">
         <aside className="self-start rounded-md border border-border bg-card shadow-sm">
           <div className="border-b border-border px-6 py-5">
-            <h1 className="text-xl font-semibold text-foreground">Novo cliente</h1>
+            <h1 className="text-xl font-semibold text-foreground">Novo {partnerLabel}</h1>
           </div>
 
           <nav className="px-3 py-3">
@@ -79,10 +84,10 @@ export function ClientRegistrationContent() {
               className="h-11 rounded-sm bg-[#22b889] text-white hover:bg-[#1da77c]"
               disabled={status === "saving"}
             >
-              {status === "saving" ? <Loader2 className="size-4 animate-spin" /> : "Salvar cliente"}
+              {status === "saving" ? <Loader2 className="size-4 animate-spin" /> : `Salvar ${partnerLabel}`}
             </Button>
             <Button asChild variant="outline" className="h-11 rounded-sm">
-              <Link href="/cadastros/clientes">Voltar para a lista</Link>
+              <Link href={listHref}>Voltar para a lista</Link>
             </Button>
           </div>
         </aside>
@@ -91,12 +96,12 @@ export function ClientRegistrationContent() {
           <Card id="dados-gerais" className="rounded-md border-border bg-card shadow-sm">
             <CardHeader>
               <CardTitle className="text-xl font-medium text-[#17324d]">
-                Dados gerais do cliente
+                Dados gerais do {partnerLabel}
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-5">
               <div className="grid gap-5 lg:grid-cols-[1fr_1fr] xl:grid-cols-[1fr_1fr_1fr]">
-                <Field label="Tipo do cliente">
+                <Field label={`Tipo do ${partnerLabel}`}>
                   <Select
                     value={client.clientType}
                     onValueChange={(value) => updateClient("clientType", value as ClientType)}
@@ -125,7 +130,7 @@ export function ClientRegistrationContent() {
                 </Field>
               </div>
 
-              <Field label="Nome do cliente" required>
+              <Field label={`Nome do ${partnerLabel}`} required>
                 <Input
                   value={client.name}
                   onChange={(event) => updateClient("name", event.target.value)}
@@ -285,7 +290,7 @@ export function ClientRegistrationContent() {
 
           {status === "saved" ? (
             <p className="rounded-sm border border-[#22b889]/40 bg-[#22b889]/10 px-3 py-2 text-sm font-medium text-[#137557]">
-              Cliente salvo com sucesso.
+              {isSupplier ? "Fornecedor salvo com sucesso." : "Cliente salvo com sucesso."}
             </p>
           ) : null}
           {status === "error" ? (

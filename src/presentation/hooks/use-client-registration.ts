@@ -4,8 +4,12 @@ import { useState } from "react"
 import { RegisterClient } from "@/src/application/use-cases/partners/register-client"
 import type { ClientRegistration } from "@/src/domain/partners/client-registration"
 import { clientRegistrationApi } from "@/src/infrastructure/http/client-registration-api"
+import { supplierRegistrationApi } from "@/src/infrastructure/http/supplier-registration-api"
 
-const registerClient = new RegisterClient(clientRegistrationApi)
+const registrations = {
+  client: new RegisterClient(clientRegistrationApi, "cliente"),
+  supplier: new RegisterClient(supplierRegistrationApi, "fornecedor"),
+}
 
 export const initialClientRegistration: ClientRegistration = {
   clientType: "Pessoa juridica",
@@ -30,10 +34,11 @@ export const initialClientRegistration: ClientRegistration = {
   city: "",
 }
 
-export function useClientRegistration() {
+export function useClientRegistration(partnerKind: "client" | "supplier" = "client") {
+  const partnerLabel = partnerKind === "supplier" ? "fornecedor" : "cliente"
   const [client, setClient] = useState<ClientRegistration>(initialClientRegistration)
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
-  const [errorMessage, setErrorMessage] = useState("Nao foi possivel salvar o cliente.")
+  const [errorMessage, setErrorMessage] = useState(`Nao foi possivel salvar o ${partnerLabel}.`)
 
   const updateClient = <Field extends keyof ClientRegistration>(
     field: Field,
@@ -45,19 +50,19 @@ export function useClientRegistration() {
   const resetClient = () => {
     setClient(initialClientRegistration)
     setStatus("idle")
-    setErrorMessage("Nao foi possivel salvar o cliente.")
+    setErrorMessage(`Nao foi possivel salvar o ${partnerLabel}.`)
   }
 
   const submitClient = async () => {
     setStatus("saving")
-    setErrorMessage("Nao foi possivel salvar o cliente.")
+    setErrorMessage(`Nao foi possivel salvar o ${partnerLabel}.`)
 
     try {
-      await registerClient.execute(client)
+      await registrations[partnerKind].execute(client)
       setStatus("saved")
       return true
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Nao foi possivel salvar o cliente.")
+      setErrorMessage(error instanceof Error ? error.message : `Nao foi possivel salvar o ${partnerLabel}.`)
       setStatus("error")
       return false
     }
