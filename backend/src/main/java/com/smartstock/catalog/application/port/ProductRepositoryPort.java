@@ -11,6 +11,10 @@ public interface ProductRepositoryPort {
 
   Optional<Product> findById(UUID id);
 
+  Optional<Product> findByIdForUpdate(UUID id);
+
+  void updateStock(UUID id, java.math.BigDecimal quantity);
+
   Product save(Product product);
 
   void deleteById(UUID id);

@@ -16,9 +16,9 @@ export const navigationMenu: NavigationItem[] = [
     title: "Vendas",
     icon: "shopping-cart",
     children: [
+      { title: "Caixa Web", href: "/vendas/caixa" },
       { title: "Pedidos de Venda", href: "/vendas/pedidos" },
       { title: "Orcamentos", href: "/vendas/orcamentos" },
-      { title: "Fechamento de Caixa", href: "/vendas/caixa" },
     ],
   },
   { title: "Raio X", icon: "bar-chart-3", href: "/raio-x" },

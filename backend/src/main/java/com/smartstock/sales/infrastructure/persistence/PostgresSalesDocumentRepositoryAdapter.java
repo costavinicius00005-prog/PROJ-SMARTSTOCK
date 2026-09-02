@@ -6,6 +6,11 @@ import com.smartstock.sales.domain.SalesOrder;
 import com.smartstock.sales.domain.SalesOrderStatus;
 import com.smartstock.sales.domain.SalesQuote;
 import com.smartstock.sales.domain.SalesQuoteStatus;
+import com.smartstock.sales.domain.PaymentMethod;
+import com.smartstock.sales.domain.Sale;
+import com.smartstock.sales.application.usecase.CompleteSaleCommand;
+import java.math.BigDecimal;
+import java.util.Map;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
@@ -77,6 +82,10 @@ public class PostgresSalesDocumentRepositoryAdapter implements SalesDocumentRepo
     return jdbc.query(ORDER_SELECT + " WHERE o.id=?", (rs, row) -> order(rs), id).stream().findFirst();
   }
 
+  @Override public Optional<SalesOrder> findOrderForUpdate(UUID id) {
+    return jdbc.query(ORDER_SELECT + " WHERE o.id=? FOR UPDATE OF o", (rs, row) -> order(rs), id).stream().findFirst();
+  }
+
   @Override public Optional<SalesOrder> findOrderByQuote(UUID quoteId) {
     return jdbc.query(ORDER_SELECT + " WHERE o.source_quote_id=?", (rs, row) -> order(rs), quoteId).stream().findFirst();
   }
@@ -99,6 +108,58 @@ public class PostgresSalesDocumentRepositoryAdapter implements SalesDocumentRepo
 
   @Override public void updateOrderStatus(UUID id, String status) {
     jdbc.update("UPDATE sales_orders SET status=?, updated_at=now() WHERE id=?", status, id);
+  }
+
+  @Override public List<PaymentMethod> listPaymentMethods() {
+    return jdbc.query("SELECT * FROM payment_methods WHERE active=true ORDER BY name", (rs, row) ->
+        new PaymentMethod(rs.getObject("id", UUID.class), rs.getString("code"), rs.getString("name"),
+            rs.getString("kind"), rs.getBoolean("allows_change"), rs.getBoolean("allows_credit")));
+  }
+
+  @Override public Optional<Sale> findSaleByOrder(UUID orderId) {
+    return jdbc.query("SELECT * FROM sales WHERE sales_order_id=?", (rs, row) -> sale(rs), orderId).stream().findFirst();
+  }
+
+  @Override public Sale saveSale(Sale sale, List<CompleteSaleCommand.Payment> payments,
+      Map<UUID, Map<UUID, BigDecimal>> components, Map<UUID, BigDecimal> balances) {
+    jdbc.update("""
+        INSERT INTO sales(id, source, sales_order_id, client_id, client_name, notes, subtotal, item_discount,
+        general_discount, freight, total, status, created_by) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+        """, sale.id(), sale.source(), sale.salesOrderId(), sale.clientId(), sale.clientName(), null,
+        sale.subtotal(), sale.itemDiscount(), sale.generalDiscount(), sale.freight(), sale.total(), "COMPLETED", "system");
+    for (SalesDocumentItem item : sale.items()) {
+      jdbc.update("""
+          INSERT INTO sale_items(id,sale_id,product_id,product_code,product_name,unit_of_measure,quantity,
+          unit_price,discount,gross_subtotal,net_subtotal) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+          """, item.id(), sale.id(), item.productId(), item.productCode(), item.productName(), item.unitOfMeasure(),
+          item.quantity(), item.unitPrice(), item.discount(), item.grossSubtotal(), item.netSubtotal());
+      components.getOrDefault(item.productId(), Map.of()).forEach((productId, quantity) -> jdbc.update(
+          "INSERT INTO sale_item_components(id,sale_item_id,product_id,quantity) VALUES(?,?,?,?)",
+          UUID.randomUUID(), item.id(), productId, quantity));
+    }
+    for (CompleteSaleCommand.Payment payment : payments) {
+      BigDecimal received = payment.receivedAmount() == null ? payment.amount() : payment.receivedAmount();
+      jdbc.update("INSERT INTO sale_payments(id,sale_id,payment_method_id,amount,received_amount,change_amount,installments) VALUES(?,?,?,?,?,?,?)",
+          UUID.randomUUID(), sale.id(), payment.paymentMethodId(), payment.amount(), received,
+          received.subtract(payment.amount()).max(BigDecimal.ZERO), Math.max(1, payment.installments()));
+    }
+    balances.forEach((productId, balance) -> jdbc.update(
+        "INSERT INTO stock_movements(id,product_id,sale_id,type,quantity,balance_after,created_by) VALUES(?,?,?,'SALE_OUT',?,?,'system')",
+        UUID.randomUUID(), productId, sale.id(), components.values().stream().map(m -> m.getOrDefault(productId, BigDecimal.ZERO)).reduce(BigDecimal.ZERO, BigDecimal::add), balance));
+    return jdbc.query("SELECT * FROM sales WHERE id=?", (rs, row) -> sale(rs), sale.id()).getFirst();
+  }
+
+  private Sale sale(ResultSet rs) throws SQLException {
+    UUID id = rs.getObject("id", UUID.class);
+    List<SalesDocumentItem> items = jdbc.query("SELECT * FROM sale_items WHERE sale_id=? ORDER BY product_name", (itemRs, row) ->
+        new SalesDocumentItem(itemRs.getObject("id", UUID.class), itemRs.getObject("product_id", UUID.class),
+            itemRs.getString("product_code"), itemRs.getString("product_name"), itemRs.getString("unit_of_measure"),
+            itemRs.getBigDecimal("quantity"), itemRs.getBigDecimal("unit_price"), itemRs.getBigDecimal("discount"),
+            itemRs.getBigDecimal("gross_subtotal"), itemRs.getBigDecimal("net_subtotal")), id);
+    return new Sale(id, rs.getLong("number"), rs.getString("source"), rs.getObject("sales_order_id", UUID.class),
+        rs.getObject("client_id", UUID.class), rs.getString("client_name"), rs.getBigDecimal("subtotal"),
+        rs.getBigDecimal("item_discount"), rs.getBigDecimal("general_discount"), rs.getBigDecimal("freight"),
+        rs.getBigDecimal("total"), rs.getString("status"), items, rs.getObject("created_at", OffsetDateTime.class));
   }
 
   private void insertQuoteItem(UUID quoteId, SalesDocumentItem item) {

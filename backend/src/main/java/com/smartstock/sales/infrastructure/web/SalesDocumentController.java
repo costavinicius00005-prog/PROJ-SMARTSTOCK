@@ -3,6 +3,8 @@ package com.smartstock.sales.infrastructure.web;
 import com.smartstock.sales.application.usecase.SalesDocumentService;
 import com.smartstock.sales.domain.SalesOrder;
 import com.smartstock.sales.domain.SalesQuote;
+import com.smartstock.sales.domain.PaymentMethod;
+import com.smartstock.sales.domain.Sale;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -41,4 +43,7 @@ public class SalesDocumentController {
   @DeleteMapping("/orders/{id}") public ResponseEntity<Void> cancelOrder(@PathVariable UUID id) {
     service.cancelOrder(id); return ResponseEntity.noContent().build();
   }
+  @GetMapping("/checkout/payment-methods") public List<PaymentMethod> paymentMethods() { return service.listPaymentMethods(); }
+  @PostMapping("/checkout/complete") @ResponseStatus(HttpStatus.CREATED)
+  public Sale complete(@RequestBody CompleteSaleRequest request) { return service.completeSale(request.toCommand()); }
 }

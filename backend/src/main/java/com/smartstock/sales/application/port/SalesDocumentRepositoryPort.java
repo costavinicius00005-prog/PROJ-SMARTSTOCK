@@ -2,6 +2,9 @@ package com.smartstock.sales.application.port;
 
 import com.smartstock.sales.domain.SalesOrder;
 import com.smartstock.sales.domain.SalesQuote;
+import com.smartstock.sales.domain.PaymentMethod;
+import com.smartstock.sales.domain.Sale;
+import com.smartstock.sales.application.usecase.CompleteSaleCommand;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -14,7 +17,13 @@ public interface SalesDocumentRepositoryPort {
   void updateQuoteStatus(UUID id, String status);
   List<SalesOrder> listOrders();
   Optional<SalesOrder> findOrder(UUID id);
+  Optional<SalesOrder> findOrderForUpdate(UUID id);
   Optional<SalesOrder> findOrderByQuote(UUID quoteId);
   SalesOrder createOrderFromQuote(SalesQuote quote);
   void updateOrderStatus(UUID id, String status);
+  List<PaymentMethod> listPaymentMethods();
+  Optional<Sale> findSaleByOrder(UUID orderId);
+  Sale saveSale(Sale sale, List<CompleteSaleCommand.Payment> payments,
+      java.util.Map<UUID, java.util.Map<UUID, java.math.BigDecimal>> components,
+      java.util.Map<UUID, java.math.BigDecimal> balances);
 }

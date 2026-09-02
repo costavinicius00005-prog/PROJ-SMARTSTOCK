@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.smartstock.catalog.application.port.ProductRepositoryPort;
+import com.smartstock.catalog.application.port.ProductCompositionRepositoryPort;
 import com.smartstock.catalog.domain.Product;
 import com.smartstock.partners.application.port.ClientRepositoryPort;
 import com.smartstock.partners.domain.Client;
@@ -33,12 +34,13 @@ class SalesDocumentServiceTest {
   @Mock SalesDocumentRepositoryPort repository;
   @Mock ClientRepositoryPort clients;
   @Mock ProductRepositoryPort products;
+  @Mock ProductCompositionRepositoryPort compositions;
   SalesDocumentService service;
   UUID clientId = UUID.randomUUID();
   UUID productId = UUID.randomUUID();
 
   @BeforeEach void setUp() {
-    service = new SalesDocumentService(repository, clients, products);
+    service = new SalesDocumentService(repository, clients, products, compositions);
   }
 
   @Test void recalculatesAndPreservesNegotiatedValues() {

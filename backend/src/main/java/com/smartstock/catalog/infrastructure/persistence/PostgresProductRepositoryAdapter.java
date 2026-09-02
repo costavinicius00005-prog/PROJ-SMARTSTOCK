@@ -46,6 +46,21 @@ public class PostgresProductRepositoryAdapter implements ProductRepositoryPort {
 
   @Override
   @Transactional
+  public Optional<Product> findByIdForUpdate(UUID id) {
+    return entityManager.createQuery("select p from ProductJpaEntity p where p.id = :id", ProductJpaEntity.class)
+        .setParameter("id", id).setLockMode(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+        .getResultStream().findFirst().map(ProductJpaMapper::toDomain);
+  }
+
+  @Override
+  @Transactional
+  public void updateStock(UUID id, java.math.BigDecimal quantity) {
+    entityManager.createQuery("update ProductJpaEntity p set p.stockQuantity = :quantity, p.updatedAt = :now where p.id = :id")
+        .setParameter("quantity", quantity).setParameter("now", OffsetDateTime.now()).setParameter("id", id).executeUpdate();
+  }
+
+  @Override
+  @Transactional
   public Product save(Product product) {
     CategoryJpaEntity category = entityManager.getReference(CategoryJpaEntity.class, product.categoryId());
     BrandJpaEntity brand = entityManager.getReference(BrandJpaEntity.class, product.brandId());
