@@ -204,7 +204,8 @@ export function ProductsContent() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
+          <div className="overflow-x-auto">
+          <Table className="min-w-[860px]">
             <TableHeader>
               <TableRow className="bg-primary/5 hover:bg-primary/5">
                 <SortableHead column="name" onSort={handleSort} sortIcon={<SortIcon column="name" />}>
@@ -300,6 +301,7 @@ export function ProductsContent() {
                 ))}
             </TableBody>
           </Table>
+          </div>
           <div className="flex items-center justify-between border-t border-border bg-primary/5 px-4 py-3">
             <span className="text-sm font-semibold text-foreground">
               TOTAL: <span className="font-normal">{sortedProducts.length} Produtos</span>

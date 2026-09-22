@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><title>Documentação Técnica — SmartStock Entregas</title><style>
+@page{size:A4;margin:17mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#17233d;line-height:1.45;font-size:9.8pt;margin:0}h1{font-size:27pt;color:#2457d6;margin:0 0 8px}h2{font-size:17pt;color:#1c469f;border-bottom:2px solid #dce7ff;padding-bottom:5px;margin:28px 0 12px}h3{font-size:12.5pt;margin:19px 0 7px}.cover{min-height:250mm;display:flex;flex-direction:column;justify-content:center;background:linear-gradient(135deg,#f5f8ff,#fff);padding:20mm}.brand{width:68px;height:68px;background:#2457d6;border-radius:20px;color:#fff;display:flex;align-items:center;justify-content:center;font-size:32px;margin-bottom:24px}.subtitle{font-size:14pt;color:#61708a}.tag{display:inline-block;padding:5px 10px;background:#eaf0ff;border-radius:20px;color:#2457d6;font-weight:bold;font-size:9pt}.box{background:#f5f8ff;border-left:4px solid #2457d6;padding:12px 14px;margin:13px 0;border-radius:0 10px 10px 0}.warn{background:#fff7e7;border-left-color:#d78b00}.diagram{background:#101a31;color:#dfe8ff;padding:15px;border-radius:12px;white-space:pre-wrap;line-height:1.35;margin:12px 0;font-family:Consolas,monospace;font-size:8.7pt}pre{background:#f3f6fb;padding:12px;border-radius:8px;font-family:Consolas,monospace;font-size:8.5pt}table{width:100%;border-collapse:collapse;margin:11px 0}th{background:#2457d6;color:#fff;padding:8px;text-align:left}td{padding:7px;border-bottom:1px solid #dce3f0;vertical-align:top}ul,ol{padding-left:21px}li{margin:4px 0}.footer{margin-top:25px;color:#69758b;font-size:8pt;text-align:center}
+</style></head><body>
+<section class="cover"><div class="brand">🚚</div><span class="tag">SMARTSTOCK • DOCUMENTAÇÃO TÉCNICA</span><h1>SmartStock Entregas</h1><p class="subtitle">Especificação funcional, arquitetura Flutter, persistência local e plano de integração com Spring Boot.</p><p style="margin-top:42px"><b>Versão:</b> 1.0.0<br><b>Plataforma:</b> Flutter / Android e iOS<br><b>Modo inicial:</b> local-first com SQLite<br><b>Data:</b> agosto de 2026</p></section>
+<h2>1. Visão geral e objetivo</h2><p>O SmartStock Entregas é um aplicativo móvel para a última etapa do processo comercial: a entrega. Ele foi feito como produto independente do ERP e do backend atual. Na primeira versão roda com dados locais persistentes; na próxima etapa pode integrar qualquer backend Java/Spring Boot por API REST.</p><div class="box"><b>Princípio principal:</b> as telas não conhecem SQLite ou HTTP. Elas dependem do contrato <code>DeliveryRepository</code>, permitindo trocar a fonte de dados sem reescrever a experiência do entregador.</div>
+<h2>2. Escopo funcional implementado</h2><table><tr><th>Área</th><th>Implementação</th></tr><tr><td>Autenticação</td><td>Login local demonstrativo, preparado para substituição por JWT.</td></tr><tr><td>Rota</td><td>Rota diária, lista ordenada, filtros por status, busca e próxima parada.</td></tr><tr><td>Entrega</td><td>Detalhe de cliente, endereço, pedido, itens e observações.</td></tr><tr><td>Ações externas</td><td>Google Maps, discador e WhatsApp por meio do sistema operacional.</td></tr><tr><td>Finalização</td><td>Iniciar rota, confirmar entrega, nome do recebedor, foto e ocorrência.</td></tr><tr><td>Offline</td><td>SQLite, eventos locais e contador de pendências de sincronização.</td></tr></table>
+<h2>3. Arquitetura de software</h2><div class="diagram">┌─────────────────────────────────────┐
+│ Presentation                         │
+│ LoginPage • HomeShell • DetailPage   │
+└──────────────────┬──────────────────┘
+                   │ usa
+┌──────────────────▼──────────────────┐
+│ Domain                               │
+│ Delivery • DeliveryEvent             │
+│ DeliveryRepository (contrato)        │
+└──────────────────┬──────────────────┘
+                   │ implementa
+┌──────────────────▼──────────────────┐
+│ Data                                 │
+│ LocalDeliveryRepository → SQLite     │
+│ ApiDeliveryRepository   → Spring API │
+└─────────────────────────────────────┘</div><p>Foi utilizada uma organização inspirada em Clean Architecture: modelos e contratos no domínio, implementações de acesso em data e widgets em features.</p>
+<h2>4. Estrutura do projeto</h2><pre>lib/
+├── app/                 # MaterialApp, tema e composição
+├── data/
+│   └── local/           # Repositório SQLite e seed demonstrativo
+├── domain/              # Modelos e contrato de repositório
+└── features/
+    ├── auth/            # Login
+    ├── home/            # Início, entregas, rota e perfil
+    └── deliveries/      # Detalhe, comprovante e ocorrência
+docs/                    # HTML e PDFs de documentação</pre>
+<h2>5. Modelo de domínio e regras</h2><table><tr><th>Modelo</th><th>Responsabilidade</th></tr><tr><td>AppUser</td><td>Usuário logado: identificador, nome e e-mail.</td></tr><tr><td>Delivery</td><td>Pedido, cliente, endereço, sequência, status, itens e evidências.</td></tr><tr><td>DeliveryItem</td><td>Item e quantidade pertencentes à entrega.</td></tr><tr><td>DeliveryEvent</td><td>Histórico de alteração de status, data e observação.</td></tr></table><div class="diagram">pending ──► onRoute ──► delivered
+                         └──► failed</div><p>Uma entrega finalizada não retorna ao fluxo normal no aplicativo. O servidor futuro deve validar transições e armazenar todo evento para auditoria.</p>
+<h2>6. Persistência e operação offline</h2><p>O banco <code>smartstock_delivery.db</code> é criado pelo pacote <code>sqflite</code> dentro da área privada do aplicativo.</p><table><tr><th>Tabela</th><th>Uso</th></tr><tr><td>deliveries</td><td>Entrega serializada em JSON e data de atualização.</td></tr><tr><td>delivery_events</td><td>Evento de status com campo <code>synced</code>; forma a fila de operações.</td></tr></table><ol><li>Ao atualizar uma entrega, o app grava o novo estado em <code>deliveries</code>.</li><li>Na mesma transação, cria um evento pendente em <code>delivery_events</code>.</li><li>A interface mostra a quantidade de atualizações aguardando servidor.</li><li>Na integração futura, um serviço enviará os eventos em ordem e marcará cada item como sincronizado.</li></ol><div class="box warn"><b>Limite atual:</b> a fila é persistida e visível; o envio HTTP automático será ligado quando o backend Spring Boot fornecer os endpoints definidos nesta documentação.</div>
+<h2>7. Dependências e permissões</h2><table><tr><th>Pacote</th><th>Uso</th></tr><tr><td>sqflite + path</td><td>Banco relacional local e caminho seguro do arquivo.</td></tr><tr><td>image_picker</td><td>Captura da foto do comprovante.</td></tr><tr><td>url_launcher</td><td>Abertura de Maps, telefone e WhatsApp.</td></tr></table><p>O manifesto Android declara a permissão <code>android.permission.CAMERA</code>. A câmera deve ser solicitada somente no momento de anexar um comprovante.</p>
+<h2>8. Contrato de integração com Spring Boot</h2><table><tr><th>Método</th><th>Endpoint</th><th>Uso</th></tr><tr><td>POST</td><td>/api/mobile/auth/login</td><td>Login; retorna access token e refresh token.</td></tr><tr><td>POST</td><td>/api/mobile/auth/refresh</td><td>Renovação da sessão.</td></tr><tr><td>GET</td><td>/api/mobile/routes/today</td><td>Rota e paradas do entregador autenticado.</td></tr><tr><td>GET</td><td>/api/mobile/deliveries/{id}</td><td>Detalhe atualizado de entrega.</td></tr><tr><td>POST</td><td>/api/mobile/deliveries/{id}/events</td><td>Início, conclusão ou ocorrência.</td></tr><tr><td>POST</td><td>/api/mobile/deliveries/{id}/proofs</td><td>Nome do recebedor e arquivo do comprovante.</td></tr><tr><td>POST</td><td>/api/mobile/sync</td><td>Envio em lote de eventos feitos offline.</td></tr></table><pre>{
+  "eventId": "uuid-gerado-no-celular",
+  "status": "DELIVERED",
+  "occurredAt": "2026-08-21T14:30:00Z",
+  "note": "Recebido por Maria"
+}</pre><p>O campo <code>eventId</code> deve ser idempotente: se o aparelho reenviar o mesmo evento, o backend não pode duplicar a alteração.</p>
+<h2>9. Segurança e LGPD para produção</h2><ul><li>JWT curto com refresh token e HTTPS obrigatório.</li><li>Senha armazenada com BCrypt ou Argon2 no backend.</li><li>O servidor filtra as entregas pelo entregador autenticado; o Flutter não define a autorização.</li><li>Fotos ficam fora do banco, com acesso protegido.</li><li>Auditar status, usuário, data e origem da alteração.</li><li>Solicitar localização apenas com consentimento e finalidade clara.</li></ul>
+<h2>10. Execução, testes e próximos passos</h2><pre>flutter pub get
+flutter analyze
+flutter test
+flutter run</pre><p>Testes manuais recomendados: login, filtros, início de rota, navegação, ligação, WhatsApp, confirmação com foto, ocorrência, fechamento e reabertura do app para validar a persistência.</p><table><tr><th>Prioridade</th><th>Próximo incremento</th></tr><tr><td>Alta</td><td>Implementar ApiDeliveryRepository, JWT e endpoints do Spring Boot.</td></tr><tr><td>Alta</td><td>Sincronização automática e resolução de conflitos.</td></tr><tr><td>Média</td><td>Assinatura digital, galeria de comprovantes e notificações.</td></tr><tr><td>Média</td><td>GPS consentido, check-in geográfico e rastreamento em rota.</td></tr><tr><td>Futura</td><td>Mapa interno, ETA e otimização automática da sequência.</td></tr></table>
+<p class="footer">SmartStock Entregas — Documentação Técnica e Funcional • versão 1.0.0</p></body></html>

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Loader2, Plus, Trash2 } from "lucide-react"
+import { Loader2, PackagePlus, Plus, Trash2, UserPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -32,6 +32,14 @@ export function SalesOrderContent({ quoteId }: { quoteId?: string }) {
   const [selectedProduct, setSelectedProduct] = useState("")
   const [status, setStatus] = useState<"loading" | "ready" | "saving" | "error">("loading")
   const [message, setMessage] = useState("")
+  const [quickOpen, setQuickOpen] = useState(false)
+  const [quickSaving, setQuickSaving] = useState(false)
+  const [quickOk, setQuickOk] = useState("")
+  const [quickForm, setQuickForm] = useState({ name: "", doc: "", phone: "", city: "", address: "", number: "", district: "", state: "" })
+  const [quickProdOpen, setQuickProdOpen] = useState(false)
+  const [quickProdSaving, setQuickProdSaving] = useState(false)
+  const [quickProdOk, setQuickProdOk] = useState("")
+  const [quickProdForm, setQuickProdForm] = useState({ name: "", category: "", brand: "", unit: "UN", cost: "", price: "" })
 
   useEffect(() => {
     Promise.all([
@@ -65,6 +73,94 @@ export function SalesOrderContent({ quoteId }: { quoteId?: string }) {
     setSelectedProduct("")
   }
 
+  const createQuickClient = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (quickSaving) return
+    setQuickSaving(true)
+    setMessage("")
+    const digits = quickForm.doc.replace(/\D/g, "")
+    const clientType = digits.length >= 14 ? "Pessoa juridica" : "Pessoa fisica"
+    const payload: Record<string, string> = { clientType, name: quickForm.name.trim() }
+    if (clientType === "Pessoa juridica") payload.cnpj = quickForm.doc
+    else if (quickForm.doc.trim()) payload.cpf = quickForm.doc
+    if (quickForm.phone.trim()) payload.primaryPhone = quickForm.phone
+    if (quickForm.address.trim()) payload.address = quickForm.address
+    if (quickForm.number.trim()) payload.addressNumber = quickForm.number
+    if (quickForm.district.trim()) payload.district = quickForm.district
+    if (quickForm.city.trim()) payload.city = quickForm.city
+    if (quickForm.state.trim()) payload.state = quickForm.state
+    try {
+      const response = await fetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(data?.message ?? "Nao foi possivel cadastrar o cliente.")
+      const created = data as { id: string; name: string; cpf: string | null; cnpj: string | null }
+      setClients((previous) => [...previous, created])
+      setClientId(created.id)
+      setQuickOpen(false)
+      setQuickForm({ name: "", doc: "", phone: "", city: "", address: "", number: "", district: "", state: "" })
+      setQuickOk(`Cliente "${created.name}" cadastrado e selecionado.`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Erro inesperado.")
+    } finally {
+      setQuickSaving(false)
+    }
+  }
+
+  const createQuickProduct = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (quickProdSaving) return
+    setQuickProdSaving(true)
+    setMessage("")
+    const cost = Number(quickProdForm.cost.replace(",", "."))
+    const price = Number(quickProdForm.price.replace(",", "."))
+    if (!(cost > 0) || !(price > 0)) {
+      setMessage("Informe preco de custo e de venda maiores que zero.")
+      setQuickProdSaving(false)
+      return
+    }
+    const payload = {
+      name: quickProdForm.name.trim(),
+      category: quickProdForm.category.trim() || "Mercadoria",
+      brand: quickProdForm.brand.trim() || "Sem marca",
+      unitOfMeasure: quickProdForm.unit.trim().toUpperCase() || "UN",
+      internalCode: `P-${Date.now().toString().slice(-7)}`,
+      costValue: cost,
+      saleMarkup: Number((price / cost).toFixed(4)) || 1,
+      salePrice: price,
+    }
+    try {
+      const response = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      const data = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(data?.message ?? "Nao foi possivel cadastrar o produto.")
+      const created = data as { id: string; name: string; internalCode: string; salePrice: number }
+      const readyProduct = {
+        id: created.id,
+        name: created.name,
+        internalCode: created.internalCode,
+        unitOfMeasure: quickProdForm.unit.trim().toUpperCase() || "UN",
+        salePrice: created.salePrice,
+        stockAvailable: 0,
+      }
+      setProducts((previous) => [...previous, readyProduct as RegisteredProduct])
+      setItems((previous) => [...previous, { productId: created.id, quantity: 1, unitPrice: created.salePrice, discount: 0 }])
+      setQuickProdOpen(false)
+      setQuickProdOk(`Produto "${created.name}" criado e adicionado ao pedido.`)
+      setQuickProdForm({ name: "", category: "", brand: "", unit: "UN", cost: "", price: "" })
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Erro inesperado.")
+    } finally {
+      setQuickProdSaving(false)
+    }
+  }
+
   const save = async (mode: "DRAFT" | "OPEN" | "CONVERT") => {
     setStatus("saving"); setMessage("")
     const payload: SaveQuotePayload = { clientId: clientId || null, issueDate, validUntil: validUntil || null,
@@ -92,11 +188,47 @@ export function SalesOrderContent({ quoteId }: { quoteId?: string }) {
     </aside>
     <main className="grid gap-5">
       <Card><CardHeader><CardTitle>Dados gerais e cliente</CardTitle></CardHeader><CardContent className="grid gap-4 md:grid-cols-3">
-        <Field label="Cliente"><Select value={clientId} onValueChange={setClientId} disabled={!editable}><SelectTrigger><SelectValue placeholder="Selecione um cliente" /></SelectTrigger><SelectContent>{clients.map((client) => <SelectItem key={client.id} value={client.id}>{client.name} {client.cnpj || client.cpf ? `- ${client.cnpj ?? client.cpf}` : ""}</SelectItem>)}</SelectContent></Select></Field>
+        <Field label="Cliente"><div className="flex flex-col gap-1.5">
+          <Select value={clientId} onValueChange={setClientId} disabled={!editable}><SelectTrigger><SelectValue placeholder="Selecione um cliente" /></SelectTrigger><SelectContent>{clients.map((client) => <SelectItem key={client.id} value={client.id}>{client.name} {client.cnpj || client.cpf ? `- ${client.cnpj ?? client.cpf}` : ""}</SelectItem>)}</SelectContent></Select>
+          {editable ? <Button type="button" variant="ghost" size="sm" className="h-6 justify-start px-1 text-xs text-muted-foreground hover:text-primary" onClick={() => { setQuickOk(""); setQuickOpen((open) => !open) }}><UserPlus className="size-3 mr-1" />{quickOpen ? "Fechar cadastro rapido" : "Cadastrar novo cliente"}</Button> : null}
+          {quickOk ? <p className="text-xs font-medium text-emerald-600">{quickOk}</p> : null}
+          {quickOpen ? <form onSubmit={createQuickClient} className="grid gap-1.5 rounded-sm border border-border p-2">
+            <Input value={quickForm.name} onChange={(e) => setQuickForm({ ...quickForm, name: e.target.value })} placeholder="Nome do cliente" required className="h-8" />
+            <div className="grid grid-cols-2 gap-1.5">
+              <Input value={quickForm.doc} onChange={(e) => setQuickForm({ ...quickForm, doc: e.target.value })} placeholder="CPF ou CNPJ" className="h-8" />
+              <Input value={quickForm.phone} onChange={(e) => setQuickForm({ ...quickForm, phone: e.target.value })} placeholder="Telefone" className="h-8" />
+            </div>
+            <div className="grid grid-cols-[1fr_70px] gap-1.5">
+              <Input value={quickForm.address} onChange={(e) => setQuickForm({ ...quickForm, address: e.target.value })} placeholder="Endereco (rua/av.) - vai para o Maps" className="h-8" />
+              <Input value={quickForm.number} onChange={(e) => setQuickForm({ ...quickForm, number: e.target.value })} placeholder="Num." className="h-8" />
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              <Input value={quickForm.district} onChange={(e) => setQuickForm({ ...quickForm, district: e.target.value })} placeholder="Bairro" className="h-8" />
+              <Input value={quickForm.city} onChange={(e) => setQuickForm({ ...quickForm, city: e.target.value })} placeholder="Cidade" className="h-8" />
+              <Input value={quickForm.state} onChange={(e) => setQuickForm({ ...quickForm, state: e.target.value })} placeholder="UF" maxLength={2} className="h-8" />
+            </div>
+            <Button type="submit" size="sm" disabled={quickSaving}>{quickSaving ? "Cadastrando..." : "Salvar e selecionar"}</Button>
+          </form> : null}
+        </div></Field>
         <Field label="Emissao"><Input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} disabled={!editable} /></Field><Field label="Validade"><Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} disabled={!editable} /></Field>
       </CardContent></Card>
       <Card><CardHeader><CardTitle>Produtos</CardTitle></CardHeader><CardContent className="grid gap-4">
         {editable ? <div className="flex gap-2"><Select value={selectedProduct} onValueChange={setSelectedProduct}><SelectTrigger className="flex-1"><SelectValue placeholder="Nome, codigo interno ou codigo de barras" /></SelectTrigger><SelectContent>{products.map((product) => <SelectItem key={product.id} value={product.id}>{product.internalCode} - {product.name} | Disponivel: {product.stockAvailable}</SelectItem>)}</SelectContent></Select><Button type="button" variant="outline" onClick={addProduct}><Plus className="size-4" />Adicionar</Button></div> : null}
+        {editable ? <div className="flex items-center gap-2">
+          <Button type="button" variant="ghost" size="sm" className="h-6 justify-start px-1 text-xs text-muted-foreground hover:text-primary" onClick={() => { setQuickProdOk(""); setQuickProdOpen((open) => !open) }}><PackagePlus className="size-3 mr-1" />{quickProdOpen ? "Fechar cadastro rapido" : "Cadastrar novo produto"}</Button>
+          {quickProdOk ? <span className="text-xs font-medium text-emerald-600">{quickProdOk}</span> : null}
+        </div> : null}
+        {quickProdOpen ? <form onSubmit={createQuickProduct} className="grid gap-2 rounded-sm border border-border p-2 md:grid-cols-6">
+          <Input value={quickProdForm.name} onChange={(e) => setQuickProdForm({ ...quickProdForm, name: e.target.value })} placeholder="Nome do produto" required className="h-8" />
+          <Input value={quickProdForm.category} onChange={(e) => setQuickProdForm({ ...quickProdForm, category: e.target.value })} placeholder="Categoria (ex.: Mercearia)" className="h-8" />
+          <Input value={quickProdForm.brand} onChange={(e) => setQuickProdForm({ ...quickProdForm, brand: e.target.value })} placeholder="Marca" className="h-8" />
+          <Input value={quickProdForm.unit} onChange={(e) => setQuickProdForm({ ...quickProdForm, unit: e.target.value })} placeholder="Unidade (UN, KG...)" className="h-8" />
+          <Input value={quickProdForm.cost} onChange={(e) => setQuickProdForm({ ...quickProdForm, cost: e.target.value })} placeholder="Custo R$" inputMode="decimal" required className="h-8" />
+          <div className="flex gap-1.5">
+            <Input value={quickProdForm.price} onChange={(e) => setQuickProdForm({ ...quickProdForm, price: e.target.value })} placeholder="Venda R$" inputMode="decimal" required className="h-8" />
+            <Button type="submit" size="sm" disabled={quickProdSaving}>{quickProdSaving ? "..." : "Criar"}</Button>
+          </div>
+        </form> : null}
         {items.length === 0 ? <p className="rounded-sm border border-dashed p-6 text-center text-sm text-muted-foreground">Nenhum produto adicionado.</p> : null}
         {items.map((item) => { const product = products.find((candidate) => candidate.id === item.productId); const insufficientStock = product !== undefined && product.stockAvailable < item.quantity; const update = (patch: Partial<DraftItem>) => setItems(items.map((current) => current.productId === item.productId ? { ...current, ...patch } : current)); return <div key={item.productId} className={`grid items-end gap-3 rounded-sm border p-3 md:grid-cols-[1fr_110px_130px_130px_130px_40px] ${insufficientStock ? "border-red-300 bg-red-50/60" : ""}`}>
           <div><p className="text-xs text-muted-foreground">Produto</p><p className="text-sm font-medium">{product?.internalCode} - {product?.name}</p><p className={insufficientStock ? "text-xs font-medium text-red-600" : "text-xs text-muted-foreground"}>{product?.unitOfMeasure} · Disponivel: {product?.stockAvailable}{insufficientStock ? " — saldo insuficiente (operacao permitida)" : ""}</p></div>

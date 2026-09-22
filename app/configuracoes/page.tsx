@@ -1,4 +1,10 @@
 import { ErpLayout } from "@/components/erp-layout"
-import { ModuleUnavailableContent } from "@/components/module-unavailable-content"
+import { CompanySettingsContent } from "@/components/company-settings-content"
 
-export default function Page() { return <ErpLayout><ModuleUnavailableContent title="Configuracoes" /></ErpLayout> }
+export default function Page() {
+  return (
+    <ErpLayout>
+      <CompanySettingsContent />
+    </ErpLayout>
+  )
+}

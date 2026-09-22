@@ -2,6 +2,7 @@ export type NavigationIconKey =
   | "layout-dashboard"
   | "users"
   | "shopping-cart"
+  | "truck"
   | "bar-chart-3"
   | "dollar-sign"
   | "wallet"

@@ -6,6 +6,20 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  async redirects() {
+    return [
+      {
+        source: '/aplicativo',
+        destination: '/aplicativo/index.html',
+        permanent: false,
+      },
+      {
+        source: '/aplicativo/',
+        destination: '/aplicativo/index.html',
+        permanent: false,
+      },
+    ]
+  },
 }
 
 export default nextConfig

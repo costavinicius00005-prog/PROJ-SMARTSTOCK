@@ -9,3 +9,13 @@ node_modules/
 .env*
 .local
 .DS_Store
+# Java / Maven
+backend/target/
+*.class
+
+# Flutter / Dart
+aplicativo-smartstock/.dart_tool/
+aplicativo-smartstock/build/
+aplicativo-smartstock/.flutter-plugins
+aplicativo-smartstock/.flutter-plugins-dependencies
+.packages

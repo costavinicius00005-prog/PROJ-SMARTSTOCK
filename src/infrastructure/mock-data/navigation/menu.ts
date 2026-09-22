@@ -21,8 +21,7 @@ export const navigationMenu: NavigationItem[] = [
       { title: "Orcamentos", href: "/vendas/orcamentos" },
     ],
   },
-  { title: "Raio X", icon: "bar-chart-3", href: "/raio-x" },
-  { title: "Conta Stone", icon: "dollar-sign", href: "/conta-stone" },
+  { title: "Entregas e Rotas", icon: "truck", href: "/entregas" },
   {
     title: "Estoque",
     icon: "package",
@@ -53,5 +52,4 @@ export const navigationMenu: NavigationItem[] = [
   },
   { title: "Contabilidade", icon: "building-2", href: "/contabilidade" },
   { title: "Configuracoes", icon: "settings", href: "/configuracoes" },
-  { title: "Loja de Aplicativos", icon: "store", href: "/aplicativos" },
 ]

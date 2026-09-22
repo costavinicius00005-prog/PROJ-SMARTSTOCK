@@ -1,266 +1,348 @@
 "use client"
 
-import { useState } from "react"
-import {
-  Search,
-  MoreVertical,
-  Plus,
-  Filter,
-  ArrowUpRight,
-  ArrowDownRight,
-  Calendar,
-  DollarSign,
-  AlertCircle,
-  CheckCircle2,
-} from "lucide-react"
+import * as React from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Spinner } from "@/components/ui/spinner"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { appUseCases } from "@/src/composition/use-cases"
-import { financialStatusClassName } from "@/src/presentation/formatters/status-styles"
-import { useSearch } from "@/src/presentation/hooks/use-search"
+import { Label } from "@/components/ui/label"
+import { ArrowDownToLine, ArrowUpFromLine, AlertTriangle, CheckCircle2, PlusCircle, RefreshCw } from "lucide-react"
+
+type Account = {
+  id: string
+  type: "PAGAR" | "RECEBER"
+  description: string
+  partyName: string | null
+  amount: number
+  dueDate: string
+  status: "ABERTO" | "PAGO" | "CANCELADO"
+  overdue: boolean
+}
+
+type Summary = {
+  toPay: { count: number; total: number }
+  toReceive: { count: number; total: number }
+  overdue: { count: number; total: number }
+  paidThisMonth: { count: number; total: number }
+}
+
+const money = (value: number) =>
+  value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+
+function formatDate(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split("-")
+  return `${d}/${m}/${y}`
+}
 
 export function FinancialContent() {
-  const [search, setSearch] = useState("")
-  const [activeTab, setActiveTab] = useState("pagar")
-  const { summary, payables, receivables } = appUseCases.getFinancialOverview()
-  const filteredPayables = useSearch(payables, search, (account, normalizedSearch) =>
-    account.description.toLowerCase().includes(normalizedSearch) ||
-    account.supplier.toLowerCase().includes(normalizedSearch)
-  )
-  const filteredReceivables = useSearch(receivables, search, (account, normalizedSearch) =>
-    account.description.toLowerCase().includes(normalizedSearch) ||
-    account.client.toLowerCase().includes(normalizedSearch)
-  )
+  const [summary, setSummary] = React.useState<Summary | null>(null)
+  const [accounts, setAccounts] = React.useState<Account[]>([])
+  const [filter, setFilter] = React.useState<"TODAS" | "PAGAR" | "RECEBER">("TODAS")
+  const [loading, setLoading] = React.useState(true)
+  const [feedback, setFeedback] = React.useState<{ type: "ok" | "error"; text: string } | null>(null)
+  const [creating, setCreating] = React.useState(false)
+
+  const [form, setForm] = React.useState({
+    type: "PAGAR",
+    description: "",
+    partyName: "",
+    amount: "",
+    dueDate: "",
+  })
+
+  async function load() {
+    setLoading(true)
+    setFeedback(null)
+    try {
+      const [summaryResponse, accountsResponse] = await Promise.all([
+        fetch("/api/finance/summary", { cache: "no-store" }),
+        fetch("/api/finance/accounts", { cache: "no-store" }),
+      ])
+      setSummary(await summaryResponse.json())
+      setAccounts(await accountsResponse.json())
+    } catch {
+      setFeedback({ type: "error", text: "Nao foi possivel carregar o financeiro." })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  React.useEffect(() => {
+    load()
+  }, [])
+
+  const visible = accounts.filter((a) => filter === "TODAS" || a.type === filter)
+
+  async function handleCreate(event: React.FormEvent) {
+    event.preventDefault()
+    setCreating(true)
+    setFeedback(null)
+    try {
+      const amount = Number(form.amount.replace(",", "."))
+      const response = await fetch("/api/finance/accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: form.type,
+          description: form.description,
+          partyName: form.partyName || null,
+          amount,
+          dueDate: form.dueDate,
+        }),
+      })
+      const json = await response.json()
+      if (!response.ok) throw new Error(json?.message ?? "Falha ao criar conta.")
+      setForm({ type: "PAGAR", description: "", partyName: "", amount: "", dueDate: "" })
+      setFeedback({ type: "ok", text: "Conta lancada no financeiro." })
+      await load()
+    } catch (err) {
+      setFeedback({ type: "error", text: err instanceof Error ? err.message : "Falha ao criar conta." })
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  async function changeStatus(account: Account, status: Account["status"]) {
+    setFeedback(null)
+    try {
+      const response = await fetch(`/api/finance/accounts/${account.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+      if (!response.ok) throw new Error("Falha ao atualizar.")
+      setFeedback({ type: "ok", text: "Conta atualizada." })
+      await load()
+    } catch (err) {
+      setFeedback({ type: "error", text: err instanceof Error ? err.message : "Falha ao atualizar." })
+    }
+  }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-        <span>Financeiro</span>
-        <span>{">"}</span>
-        <span className="text-foreground font-medium">Visao geral</span>
+    <div className="p-6 space-y-6">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">Financeiro</h1>
+          <p className="text-sm text-muted-foreground">
+            Contas a pagar e a receber reais, lancadas no mesmo banco de dados.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={load}>
+          <RefreshCw className="size-3.5 mr-1.5" />
+          Atualizar
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Card className="bg-card border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center justify-center size-9 rounded-lg bg-[#22c55e]/10">
-                <ArrowUpRight className="size-4 text-[#22c55e]" />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mb-1">Total a Receber</p>
-            <p className="text-lg font-bold text-foreground">{summary.totalReceivable}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center justify-center size-9 rounded-lg bg-destructive/10">
-                <ArrowDownRight className="size-4 text-destructive" />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mb-1">Total a Pagar</p>
-            <p className="text-lg font-bold text-foreground">{summary.totalPayable}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center justify-center size-9 rounded-lg bg-[#f59e0b]/10">
-                <AlertCircle className="size-4 text-[#f59e0b]" />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mb-1">Contas Vencidas</p>
-            <p className="text-lg font-bold text-foreground">{summary.overdue}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center justify-center size-9 rounded-lg bg-primary/10">
-                <DollarSign className="size-4 text-primary" />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mb-1">Saldo Previsto</p>
-            <p className="text-lg font-bold text-[#22c55e]">{summary.expectedBalance}</p>
-          </CardContent>
-        </Card>
+      {feedback && (
+        <div
+          className={`rounded-lg border px-3 py-2 text-sm ${
+            feedback.type === "ok"
+              ? "border-green-500/30 bg-green-500/10 text-green-600"
+              : "border-red-500/30 bg-red-500/10 text-red-500"
+          }`}
+        >
+          {feedback.text}
+        </div>
+      )}
+
+      {loading && !summary && (
+        <div className="flex items-center justify-center h-64">
+          <Spinner className="size-8" />
+        </div>
+      )}
+
+      {summary && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm text-muted-foreground">A pagar (aberto)</CardTitle>
+              <ArrowUpFromLine className="size-4 text-red-500" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-red-600">{money(summary.toPay.total)}</p>
+              <p className="text-xs text-muted-foreground">{summary.toPay.count} conta(s)</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm text-muted-foreground">A receber (aberto)</CardTitle>
+              <ArrowDownToLine className="size-4 text-emerald-500" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-emerald-600">{money(summary.toReceive.total)}</p>
+              <p className="text-xs text-muted-foreground">{summary.toReceive.count} conta(s)</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm text-muted-foreground">Vencidas</CardTitle>
+              <AlertTriangle className="size-4 text-amber-500" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-amber-600">{money(summary.overdue.total)}</p>
+              <p className="text-xs text-muted-foreground">{summary.overdue.count} conta(s) atrasada(s)</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm text-muted-foreground">Pago neste mes</CardTitle>
+              <CheckCircle2 className="size-4 text-emerald-500" />
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold text-foreground">{money(summary.paidThisMonth.total)}</p>
+              <p className="text-xs text-muted-foreground">{summary.paidThisMonth.count} baixa(s)</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <PlusCircle className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold text-foreground">Novo lancamento</h2>
+        </div>
+        <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="type">Tipo</Label>
+            <select
+              id="type"
+              value={form.type}
+              onChange={(e) => setForm({ ...form, type: e.target.value })}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+            >
+              <option value="PAGAR">A pagar</option>
+              <option value="RECEBER">A receber</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="description">Descricao</Label>
+            <Input
+              id="description"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="NF 1234 - mercadorias"
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="partyName">Fornecedor / cliente</Label>
+            <Input
+              id="partyName"
+              value={form.partyName}
+              onChange={(e) => setForm({ ...form, partyName: e.target.value })}
+              placeholder="opcional"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="amount">Valor (R$)</Label>
+            <Input
+              id="amount"
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+              placeholder="0,00"
+              inputMode="decimal"
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="dueDate">Vencimento</Label>
+            <Input
+              id="dueDate"
+              type="date"
+              value={form.dueDate}
+              onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
+              required
+            />
+          </div>
+          <div className="flex items-end">
+            <Button type="submit" className="w-full" disabled={creating}>
+              {creating ? "Lancando..." : "Lancar conta"}
+            </Button>
+          </div>
+        </form>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <div className="rounded-xl border border-border bg-card p-5">
         <div className="flex items-center justify-between mb-4">
-          <TabsList>
-            <TabsTrigger value="pagar" className="gap-1.5">
-              <ArrowDownRight className="size-3.5" />
-              Contas a Pagar
-            </TabsTrigger>
-            <TabsTrigger value="receber" className="gap-1.5">
-              <ArrowUpRight className="size-3.5" />
-              Contas a Receber
-            </TabsTrigger>
-          </TabsList>
-          <div className="flex items-center gap-2">
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 bg-card"
-              />
-            </div>
-            <Button variant="outline" size="sm" className="gap-1.5 text-sm">
-              <Filter className="size-3.5" />
-              Filtros
-            </Button>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
-              <Plus className="size-4" />
-              {activeTab === "pagar" ? "Nova conta a pagar" : "Nova conta a receber"}
-            </Button>
+          <h2 className="text-sm font-semibold text-foreground">Contas</h2>
+          <div className="flex items-center gap-1">
+            {(["TODAS", "PAGAR", "RECEBER"] as const).map((f) => (
+              <Button
+                key={f}
+                variant={filter === f ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setFilter(f)}
+              >
+                {f === "TODAS" ? "Todas" : f === "PAGAR" ? "A pagar" : "A receber"}
+              </Button>
+            ))}
           </div>
         </div>
 
-        <TabsContent value="pagar">
-          <Card className="bg-card border-border">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-semibold text-foreground">Contas a Pagar</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="pl-4 text-foreground font-medium">Descricao</TableHead>
-                    <TableHead className="text-foreground font-medium">Fornecedor</TableHead>
-                    <TableHead className="text-foreground font-medium">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="size-3.5" />
-                        Vencimento
-                      </span>
-                    </TableHead>
-                    <TableHead className="text-right text-foreground font-medium">Valor</TableHead>
-                    <TableHead className="text-foreground font-medium">Status</TableHead>
-                    <TableHead className="text-center text-foreground font-medium">Acoes</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredPayables.map((conta) => (
-                      <TableRow key={conta.id} className="hover:bg-muted/30">
-                        <TableCell className="pl-4 text-sm text-foreground">{conta.description}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{conta.supplier}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{conta.dueDate}</TableCell>
-                        <TableCell className="text-right text-sm font-medium text-foreground">
-                          {conta.value}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={financialStatusClassName(conta.status)}>
-                            {conta.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="size-7">
-                                <MoreVertical className="size-3.5 text-muted-foreground" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
-                                <CheckCircle2 className="size-3.5 mr-2" />
-                                Dar baixa
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>Editar</DropdownMenuItem>
-                              <DropdownMenuItem>Ver detalhes</DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">Excluir</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="receber">
-          <Card className="bg-card border-border">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-semibold text-foreground">Contas a Receber</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="pl-4 text-foreground font-medium">Descricao</TableHead>
-                    <TableHead className="text-foreground font-medium">Cliente</TableHead>
-                    <TableHead className="text-foreground font-medium">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="size-3.5" />
-                        Vencimento
-                      </span>
-                    </TableHead>
-                    <TableHead className="text-right text-foreground font-medium">Valor</TableHead>
-                    <TableHead className="text-foreground font-medium">Status</TableHead>
-                    <TableHead className="text-center text-foreground font-medium">Acoes</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredReceivables.map((conta) => (
-                      <TableRow key={conta.id} className="hover:bg-muted/30">
-                        <TableCell className="pl-4 text-sm text-foreground">{conta.description}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{conta.client}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{conta.dueDate}</TableCell>
-                        <TableCell className="text-right text-sm font-medium text-foreground">
-                          {conta.value}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={financialStatusClassName(conta.status)}>
-                            {conta.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="size-7">
-                                <MoreVertical className="size-3.5 text-muted-foreground" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
-                                <CheckCircle2 className="size-3.5 mr-2" />
-                                Dar baixa
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>Editar</DropdownMenuItem>
-                              <DropdownMenuItem>Ver detalhes</DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">Excluir</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-muted-foreground">
+                <th className="pb-2 pr-4 font-medium">Tipo</th>
+                <th className="pb-2 pr-4 font-medium">Descricao</th>
+                <th className="pb-2 pr-4 font-medium">Fornecedor / cliente</th>
+                <th className="pb-2 pr-4 font-medium">Vencimento</th>
+                <th className="pb-2 pr-4 font-medium">Valor</th>
+                <th className="pb-2 pr-4 font-medium">Situacao</th>
+                <th className="pb-2 font-medium">Baixar / alterar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((account) => (
+                <tr key={account.id} className="border-b border-border/60">
+                  <td className="py-2.5 pr-4">
+                    <Badge
+                      variant="secondary"
+                      className={account.type === "PAGAR" ? "bg-red-500/10 text-red-600" : "bg-emerald-500/10 text-emerald-700"}
+                    >
+                      {account.type === "PAGAR" ? "A pagar" : "A receber"}
+                    </Badge>
+                  </td>
+                  <td className="py-2.5 pr-4 text-foreground">{account.description}</td>
+                  <td className="py-2.5 pr-4 text-muted-foreground">{account.partyName ?? "-"}</td>
+                  <td className="py-2.5 pr-4 text-muted-foreground">
+                    {formatDate(account.dueDate)}
+                    {account.overdue && <Badge variant="destructive" className="ml-2">vencida</Badge>}
+                  </td>
+                  <td className="py-2.5 pr-4 font-medium text-foreground">{money(account.amount)}</td>
+                  <td className="py-2.5 pr-4">
+                    <Badge
+                      variant={account.status === "PAGO" ? "default" : "secondary"}
+                      className={account.status === "PAGO" ? "bg-[#22c55e] text-white border-0" : ""}
+                    >
+                      {account.status === "PAGO" ? "Pago" : account.status === "CANCELADO" ? "Cancelado" : "Em aberto"}
+                    </Badge>
+                  </td>
+                  <td className="py-2.5">
+                    <select
+                      value={account.status}
+                      onChange={(e) => changeStatus(account, e.target.value as Account["status"])}
+                      className="h-8 rounded-md border border-input bg-transparent px-2 text-sm"
+                    >
+                      <option value="ABERTO">Em aberto</option>
+                      <option value="PAGO">Pago / Recebido</option>
+                      <option value="CANCELADO">Cancelar</option>
+                    </select>
+                  </td>
+                </tr>
+              ))}
+              {visible.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-6 text-center text-muted-foreground">
+                    Nenhuma conta neste filtro.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }
