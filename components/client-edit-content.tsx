@@ -35,15 +35,26 @@ function toRegistration(data: RegisteredClient): ClientRegistration {
   }
 }
 
-export function ClientEditContent({ clientId }: { clientId: string }) {
+/** Carrega um cliente ou fornecedor e abre o formulario compartilhado em modo de edicao. */
+export function ClientEditContent({
+  clientId,
+  partnerKind = "client",
+}: {
+  clientId: string
+  partnerKind?: "client" | "supplier"
+}) {
   const [client, setClient] = useState<ClientRegistration | null>(null)
   const [status, setStatus] = useState<LoadStatus>("loading")
+  const isSupplier = partnerKind === "supplier"
+  const label = isSupplier ? "fornecedor" : "cliente"
+  const apiPath = isSupplier ? "/api/suppliers" : "/api/clients"
+  const listHref = isSupplier ? "/cadastros/fornecedores" : "/cadastros/clientes"
 
   useEffect(() => {
     const load = async () => {
       setStatus("loading")
       try {
-        const response = await fetch(`/api/clients/${clientId}`, { cache: "no-store" })
+        const response = await fetch(`${apiPath}/${clientId}`, { cache: "no-store" })
         if (!response.ok) throw new Error()
         setClient(toRegistration((await response.json()) as RegisteredClient))
         setStatus("loaded")
@@ -53,12 +64,12 @@ export function ClientEditContent({ clientId }: { clientId: string }) {
     }
 
     load()
-  }, [clientId])
+  }, [apiPath, clientId])
 
   if (status === "loading") {
     return (
       <div className="flex min-h-full items-center justify-center bg-[#eef1f6] p-6 text-sm text-muted-foreground">
-        Carregando cliente...
+        Carregando {label}...
       </div>
     )
   }
@@ -67,14 +78,21 @@ export function ClientEditContent({ clientId }: { clientId: string }) {
     return (
       <div className="grid min-h-full place-items-center bg-[#eef1f6] p-6">
         <div className="grid gap-3 rounded-md border border-border bg-card p-5 shadow-sm">
-          <p className="text-sm font-medium text-destructive">Nao foi possivel carregar o cliente.</p>
+          <p className="text-sm font-medium text-destructive">Nao foi possivel carregar o {label}.</p>
           <Button asChild variant="outline" className="rounded-sm">
-            <Link href="/cadastros/clientes">Voltar para a lista</Link>
+            <Link href={listHref}>Voltar para a lista</Link>
           </Button>
         </div>
       </div>
     )
   }
 
-  return <ClientRegistrationContent key={clientId} initialValue={client} clientId={clientId} />
+  return (
+    <ClientRegistrationContent
+      key={clientId}
+      partnerKind={partnerKind}
+      initialValue={client}
+      clientId={clientId}
+    />
+  )
 }

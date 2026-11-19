@@ -4,6 +4,9 @@ import com.smartstock.partners.application.usecase.CreateSupplierCommand;
 import com.smartstock.partners.application.usecase.SupplierAlreadyExistsException;
 import com.smartstock.partners.application.usecase.CreateSupplierUseCase;
 import com.smartstock.partners.application.usecase.DeleteSupplierUseCase;
+import com.smartstock.partners.application.usecase.GetSupplierUseCase;
+import com.smartstock.partners.application.usecase.SupplierNotFoundException;
+import com.smartstock.partners.application.usecase.UpdateSupplierUseCase;
 import com.smartstock.partners.application.usecase.ListSuppliersUseCase;
 import com.smartstock.partners.domain.Supplier;
 import java.time.LocalDate;
@@ -20,9 +23,32 @@ public class SupplierController {
   private final CreateSupplierUseCase createSupplier;
   private final ListSuppliersUseCase listSuppliers;
   private final DeleteSupplierUseCase deleteSupplier;
+  private final GetSupplierUseCase getSupplier;
+  private final UpdateSupplierUseCase updateSupplier;
   public SupplierController(CreateSupplierUseCase createSupplier, ListSuppliersUseCase listSuppliers,
-      DeleteSupplierUseCase deleteSupplier) {
+      DeleteSupplierUseCase deleteSupplier, GetSupplierUseCase getSupplier, UpdateSupplierUseCase updateSupplier) {
     this.createSupplier = createSupplier; this.listSuppliers = listSuppliers; this.deleteSupplier = deleteSupplier;
+    this.getSupplier = getSupplier; this.updateSupplier = updateSupplier;
+  }
+
+  @GetMapping("/{id}") public SupplierResponse get(@PathVariable UUID id) {
+    return SupplierResponse.from(getSupplier.execute(id));
+  }
+
+  @PutMapping("/{id}") public SupplierResponse update(@PathVariable UUID id, @RequestBody SupplierRequest r) {
+    return SupplierResponse.from(updateSupplier.execute(id, toCommand(r)));
+  }
+
+  @ExceptionHandler(SupplierNotFoundException.class)
+  public ResponseEntity<Map<String, String>> notFound(SupplierNotFoundException e) {
+    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", e.getMessage()));
+  }
+
+  private CreateSupplierCommand toCommand(SupplierRequest r) {
+    return new CreateSupplierCommand(r.clientType(), r.cpf(), r.cnpj(),
+        r.name(), r.tradeName(), r.email(), r.primaryPhone(), r.birthDate(), r.rg(), r.gender(),
+        r.motherName(), r.fatherName(), r.primaryContactName(), r.zipCode(), r.address(),
+        r.addressNumber(), r.complement(), r.district(), r.state(), r.city());
   }
 
   @GetMapping public List<SupplierResponse> list() { return listSuppliers.execute().stream().map(SupplierResponse::from).toList(); }

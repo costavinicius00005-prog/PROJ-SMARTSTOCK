@@ -6,7 +6,7 @@ export const supplierRegistrationApi: ClientRegistrationGateway = {
     const response = await fetch("/api/suppliers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...supplier, creditLimit: undefined }),
+      body: JSON.stringify(toSupplierPayload(supplier)),
     })
 
     if (!response.ok) {
@@ -14,4 +14,22 @@ export const supplierRegistrationApi: ClientRegistrationGateway = {
       throw new Error(data?.message ?? "Nao foi possivel cadastrar o fornecedor.")
     }
   },
+
+  async update(supplierId: string, supplier: ClientRegistration) {
+    const response = await fetch(`/api/suppliers/${supplierId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(toSupplierPayload(supplier)),
+    })
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => null)
+      throw new Error(data?.message ?? "Nao foi possivel atualizar o fornecedor.")
+    }
+  },
+}
+
+// Fornecedor nao possui limite de credito (campo exclusivo de cliente)
+function toSupplierPayload(supplier: ClientRegistration) {
+  return { ...supplier, birthDate: supplier.birthDate || null, creditLimit: undefined }
 }

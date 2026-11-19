@@ -8,5 +8,8 @@ import org.springframework.stereotype.Service;
 public class DeleteSupplierUseCase {
   private final SupplierRepositoryPort repository;
   public DeleteSupplierUseCase(SupplierRepositoryPort repository) { this.repository = repository; }
-  public void execute(UUID id) { repository.deleteById(id); }
+  public void execute(UUID id) {
+    repository.findById(id).orElseThrow(SupplierNotFoundException::new);
+    repository.deleteById(id);
+  }
 }

@@ -7,6 +7,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -20,6 +21,37 @@ public class PostgresSupplierRepositoryAdapter implements SupplierRepositoryPort
   @Override @Transactional(readOnly = true)
   public List<Supplier> list() {
     return jdbc.sql("SELECT * FROM suppliers ORDER BY name").query(this::map).list();
+  }
+
+  @Override @Transactional(readOnly = true)
+  public Optional<Supplier> findById(UUID id) {
+    return jdbc.sql("SELECT * FROM suppliers WHERE id = :id").param("id", id).query(this::map).optional();
+  }
+
+  @Override @Transactional(readOnly = true)
+  public boolean existsByCpfForOtherSupplier(String cpf, UUID id) {
+    return jdbc.sql("SELECT EXISTS(SELECT 1 FROM suppliers WHERE cpf = :cpf AND id <> :id)")
+        .param("cpf", cpf).param("id", id).query(Boolean.class).single();
+  }
+
+  @Override @Transactional(readOnly = true)
+  public boolean existsByCnpjForOtherSupplier(String cnpj, UUID id) {
+    return jdbc.sql("SELECT EXISTS(SELECT 1 FROM suppliers WHERE cnpj = :cnpj AND id <> :id)")
+        .param("cnpj", cnpj).param("id", id).query(Boolean.class).single();
+  }
+
+  @Override @Transactional
+  public Supplier update(Supplier s) {
+    jdbc.sql("""
+        UPDATE suppliers SET supplier_type = :supplierType, cpf = :cpf, cnpj = :cnpj, name = :name,
+          trade_name = :tradeName, email = :email, primary_phone = :primaryPhone, birth_date = :birthDate,
+          rg = :rg, gender = :gender, mother_name = :motherName, father_name = :fatherName,
+          primary_contact_name = :primaryContactName, zip_code = :zipCode, address = :address,
+          address_number = :addressNumber, complement = :complement, district = :district,
+          state = :state, city = :city, updated_at = now()
+        WHERE id = :id
+        """).params(parameters(s)).update();
+    return s;
   }
 
   @Override @Transactional(readOnly = true)

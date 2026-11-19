@@ -17,6 +17,7 @@ export function SuppliersContent() {
   const [suppliers, setSuppliers] = useState<RegisteredSupplier[]>([])
   const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading")
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -42,11 +43,18 @@ export function SuppliersContent() {
   async function deleteSupplier(supplier: RegisteredSupplier) {
     if (!window.confirm(`Excluir o fornecedor "${supplier.name}"?`)) return
     setDeletingId(supplier.id)
+    setActionError(null)
     try {
       const response = await fetch(`/api/suppliers/${supplier.id}`, { method: "DELETE" })
-      if (!response.ok) throw new Error()
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        throw new Error(data?.message ?? "Nao foi possivel excluir o fornecedor.")
+      }
       setSuppliers((current) => current.filter(({ id }) => id !== supplier.id))
-    } catch { setStatus("error") } finally { setDeletingId(null) }
+    } catch (error) {
+      // Mantem a lista visivel e mostra o motivo da falha
+      setActionError(error instanceof Error ? error.message : "Nao foi possivel excluir o fornecedor.")
+    } finally { setDeletingId(null) }
   }
 
   return <div className="p-6">
@@ -55,16 +63,17 @@ export function SuppliersContent() {
       <div className="relative w-80"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Buscar por nome ou CPF/CNPJ" value={search} onChange={(event) => setSearch(event.target.value)} className="bg-card pl-9" /></div>
       <Button asChild className="gap-2"><Link href="/cadastros/fornecedores/novo"><Plus className="size-4" />Novo fornecedor</Link></Button>
     </div>
+    {actionError ? <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">{actionError}</div> : null}
     <Card><CardHeader className="pb-3"><CardTitle className="text-lg">Fornecedores cadastrados</CardTitle></CardHeader><CardContent className="p-0">
       <Table><TableHeader><TableRow><TableHead className="pl-4">Nome</TableHead><TableHead>CPF/CNPJ</TableHead><TableHead>Telefone</TableHead><TableHead>E-mail</TableHead><TableHead>Cidade</TableHead><TableHead>Situacao</TableHead><TableHead className="text-center">Acoes</TableHead></TableRow></TableHeader><TableBody>
         {status === "loading" ? <TableRow><TableCell colSpan={7} className="h-28 text-center text-muted-foreground">Carregando fornecedores...</TableCell></TableRow> : null}
         {status === "error" ? <TableRow><TableCell colSpan={7} className="h-28 text-center text-destructive">Nao foi possivel carregar os fornecedores.</TableCell></TableRow> : null}
         {status === "loaded" && filtered.length === 0 ? <TableRow><TableCell colSpan={7} className="h-28 text-center text-muted-foreground">Nenhum fornecedor cadastrado.</TableCell></TableRow> : null}
         {status === "loaded" && filtered.map((supplier) => <TableRow key={supplier.id}>
-          <TableCell className="pl-4 font-medium">{supplier.name}</TableCell><TableCell>{supplier.cpf ?? supplier.cnpj ?? "-"}</TableCell>
+          <TableCell className="pl-4 font-medium"><Link href={`/cadastros/fornecedores/${supplier.id}`} className="hover:text-primary hover:underline">{supplier.name}</Link></TableCell><TableCell>{supplier.cpf ?? supplier.cnpj ?? "-"}</TableCell>
           <TableCell><span className="flex items-center gap-1"><Phone className="size-3" />{supplier.primaryPhone ?? "-"}</span></TableCell><TableCell><span className="flex items-center gap-1"><Mail className="size-3" />{supplier.email ?? "-"}</span></TableCell>
           <TableCell>{[supplier.city, supplier.state].filter(Boolean).join(" - ") || "-"}</TableCell><TableCell><Badge variant="outline" className={entityStatusClassName("Ativo")}>Ativo</Badge></TableCell>
-          <TableCell className="text-center"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="size-3.5" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem>Editar</DropdownMenuItem><DropdownMenuItem>Ver detalhes</DropdownMenuItem><DropdownMenuItem className="text-destructive focus:text-destructive" disabled={deletingId === supplier.id} onClick={() => deleteSupplier(supplier)}>{deletingId === supplier.id ? <Loader2 className="size-3.5 animate-spin" /> : null}Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
+          <TableCell className="text-center"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreVertical className="size-3.5" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem asChild><Link href={`/cadastros/fornecedores/${supplier.id}/editar`}>Editar</Link></DropdownMenuItem><DropdownMenuItem asChild><Link href={`/cadastros/fornecedores/${supplier.id}`}>Ver detalhes</Link></DropdownMenuItem><DropdownMenuItem className="text-destructive focus:text-destructive" disabled={deletingId === supplier.id} onClick={() => deleteSupplier(supplier)}>{deletingId === supplier.id ? <Loader2 className="size-3.5 animate-spin" /> : null}Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell>
         </TableRow>)}
       </TableBody></Table><div className="border-t bg-primary/5 px-4 py-3 text-sm font-semibold">TOTAL: <span className="font-normal">{filtered.length} Fornecedores</span></div>
     </CardContent></Card>
