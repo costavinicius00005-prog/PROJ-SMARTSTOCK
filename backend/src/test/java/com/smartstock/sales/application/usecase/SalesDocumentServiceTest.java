@@ -101,7 +101,7 @@ class SalesDocumentServiceTest {
         BigDecimal.ONE, BigDecimal.ZERO, items);
   }
   private Client client() { return new Client(clientId, "Pessoa fisica", "123", null, "Cliente", null, null, null,
-      null, null, null, null, null, null, null, null, null, null, null, null, null); }
+      null, null, null, null, null, null, null, null, null, null, null, null, null, null); }
   private Product product() { return new Product(productId, "Produto snapshot", UUID.randomUUID(), "Categoria",
       UUID.randomUUID(), "Marca", "P1", "Produto simples", "", UUID.randomUUID(), "UN - Unidade",
       BigDecimal.ONE, BigDecimal.ZERO, BigDecimal.TEN, null, BigDecimal.TEN, BigDecimal.ZERO); }

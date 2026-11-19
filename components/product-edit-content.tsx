@@ -37,6 +37,7 @@ export function ProductEditContent({ productId }: { productId: string }) {
           saleMarkup: data.saleMarkup ?? 0,
           salePrice: data.salePrice ?? 0,
           barcode: data.barcode ?? "",
+          stockQuantity: data.stockQuantity ?? 0,
           composition: (data.composition ?? []).map((item) => ({
             productId: item.productId,
             quantity: item.quantity,

@@ -6,7 +6,7 @@ export const supplierRegistrationApi: ClientRegistrationGateway = {
     const response = await fetch("/api/suppliers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(supplier),
+      body: JSON.stringify({ ...supplier, creditLimit: undefined }),
     })
 
     if (!response.ok) {

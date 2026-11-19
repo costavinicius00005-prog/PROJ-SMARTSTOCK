@@ -1,5 +1,6 @@
 package com.smartstock.partners.infrastructure.web;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public record CreateClientRequest(
@@ -22,5 +23,6 @@ public record CreateClientRequest(
     String complement,
     String district,
     String state,
-    String city) {
+    String city,
+    BigDecimal creditLimit) {
 }

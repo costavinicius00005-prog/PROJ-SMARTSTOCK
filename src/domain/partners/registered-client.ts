@@ -22,4 +22,5 @@ export interface RegisteredClient {
   district: string | null
   state: string | null
   city: string | null
+  creditLimit: number | null
 }

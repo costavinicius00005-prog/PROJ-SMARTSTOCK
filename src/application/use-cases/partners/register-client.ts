@@ -14,4 +14,15 @@ export class RegisterClient {
 
     await this.gateway.register(client)
   }
+
+  async update(clientId: string, client: ClientRegistration) {
+    if (!client.name.trim()) {
+      throw new Error(`Nome do ${this.partnerLabel} e obrigatorio.`)
+    }
+    if (!this.gateway.update) {
+      throw new Error(`Edicao de ${this.partnerLabel} nao disponivel.`)
+    }
+
+    await this.gateway.update(clientId, client)
+  }
 }

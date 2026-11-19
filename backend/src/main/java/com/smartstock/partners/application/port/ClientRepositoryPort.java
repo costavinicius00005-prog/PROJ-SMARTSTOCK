@@ -14,6 +14,13 @@ public interface ClientRepositoryPort {
 
   boolean existsByCnpj(String cnpj);
 
+  boolean existsByCpfForOtherClient(String cpf, UUID clientId);
+
+  boolean existsByCnpjForOtherClient(String cnpj, UUID clientId);
+
+  /** Indica se o cliente possui orcamentos, pedidos ou vendas vinculados. */
+  boolean hasCommercialHistory(UUID clientId);
+
   Client save(Client client);
 
   void deleteById(UUID id);

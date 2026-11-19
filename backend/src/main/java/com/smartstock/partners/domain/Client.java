@@ -1,5 +1,6 @@
 package com.smartstock.partners.domain;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -24,5 +25,6 @@ public record Client(
     String complement,
     String district,
     String state,
-    String city) {
+    String city,
+    BigDecimal creditLimit) {
 }

@@ -2,4 +2,6 @@ import type { ClientRegistration } from "@/src/domain/partners/client-registrati
 
 export interface ClientRegistrationGateway {
   register(client: ClientRegistration): Promise<void>
+
+  update?(clientId: string, client: ClientRegistration): Promise<void>
 }

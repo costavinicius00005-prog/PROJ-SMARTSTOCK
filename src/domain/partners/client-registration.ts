@@ -21,4 +21,6 @@ export interface ClientRegistration {
   district: string
   state: string
   city: string
+  /** Limite de credito do cliente; vazio = sem limite definido */
+  creditLimit: number | ""
 }

@@ -1,6 +1,7 @@
 package com.smartstock.partners.infrastructure.web;
 
 import com.smartstock.partners.domain.Client;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -25,7 +26,8 @@ public record ClientResponse(
     String complement,
     String district,
     String state,
-    String city) {
+    String city,
+    BigDecimal creditLimit) {
 
   public static ClientResponse fromDomain(Client client) {
     return new ClientResponse(
@@ -49,6 +51,7 @@ public record ClientResponse(
         client.complement(),
         client.district(),
         client.state(),
-        client.city());
+        client.city(),
+        client.creditLimit());
   }
 }

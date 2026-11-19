@@ -31,10 +31,11 @@ public final class ClientJpaMapper {
         entity.getComplement(),
         entity.getDistrict(),
         entity.getState(),
-        entity.getCity());
+        entity.getCity(),
+        entity.getCreditLimit());
   }
 
-  public static ClientJpaEntity toEntity(Client client) {
+  public static ClientJpaEntity toEntity(Client client, OffsetDateTime createdAt) {
     OffsetDateTime now = OffsetDateTime.now();
 
     return new ClientJpaEntity(
@@ -59,7 +60,8 @@ public final class ClientJpaMapper {
         client.district(),
         client.state(),
         client.city(),
-        now,
+        client.creditLimit(),
+        createdAt != null ? createdAt : now,
         now);
   }
 }

@@ -14,6 +14,14 @@ public class DeleteClientUseCase {
   }
 
   public void execute(UUID clientId) {
+    clientRepository.findById(clientId).orElseThrow(ClientNotFoundException::new);
+
+    // Orcamentos, pedidos e vendas referenciam o cliente (FK ON DELETE RESTRICT)
+    if (clientRepository.hasCommercialHistory(clientId)) {
+      throw new ClientInUseException(
+          "Este cliente possui orcamentos, pedidos ou vendas e nao pode ser excluido.");
+    }
+
     clientRepository.deleteById(clientId);
   }
 }

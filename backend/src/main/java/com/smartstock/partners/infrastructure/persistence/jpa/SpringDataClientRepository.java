@@ -8,4 +8,8 @@ public interface SpringDataClientRepository extends JpaRepository<ClientJpaEntit
   boolean existsByCpf(String cpf);
 
   boolean existsByCnpj(String cnpj);
+
+  boolean existsByCpfAndIdNot(String cpf, UUID id);
+
+  boolean existsByCnpjAndIdNot(String cnpj, UUID id);
 }

@@ -4,10 +4,12 @@ import com.smartstock.partners.application.port.ClientRepositoryPort;
 import com.smartstock.partners.domain.Client;
 import com.smartstock.partners.infrastructure.persistence.jpa.ClientJpaEntity;
 import com.smartstock.partners.infrastructure.persistence.jpa.SpringDataClientRepository;
+import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 import java.util.Optional;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,9 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class PostgresClientRepositoryAdapter implements ClientRepositoryPort {
 
   private final SpringDataClientRepository repository;
+  private final JdbcTemplate jdbc;
 
-  public PostgresClientRepositoryAdapter(SpringDataClientRepository repository) {
+  public PostgresClientRepositoryAdapter(SpringDataClientRepository repository, JdbcTemplate jdbc) {
     this.repository = repository;
+    this.jdbc = jdbc;
   }
 
   @Override
@@ -50,7 +54,11 @@ public class PostgresClientRepositoryAdapter implements ClientRepositoryPort {
   @Override
   @Transactional
   public Client save(Client client) {
-    ClientJpaEntity savedEntity = repository.save(ClientJpaMapper.toEntity(client));
+    // Preserva a data de cadastro original ao atualizar um cliente existente
+    OffsetDateTime createdAt = repository.findById(client.id())
+        .map(ClientJpaEntity::getCreatedAt)
+        .orElse(null);
+    ClientJpaEntity savedEntity = repository.save(ClientJpaMapper.toEntity(client, createdAt));
 
     return ClientJpaMapper.toDomain(savedEntity);
   }
@@ -59,5 +67,28 @@ public class PostgresClientRepositoryAdapter implements ClientRepositoryPort {
   @Transactional
   public void deleteById(UUID id) {
     repository.deleteById(id);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public boolean existsByCpfForOtherClient(String cpf, UUID clientId) {
+    return repository.existsByCpfAndIdNot(cpf, clientId);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public boolean existsByCnpjForOtherClient(String cnpj, UUID clientId) {
+    return repository.existsByCnpjAndIdNot(cnpj, clientId);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public boolean hasCommercialHistory(UUID clientId) {
+    Boolean exists = jdbc.queryForObject("""
+        SELECT EXISTS (SELECT 1 FROM sales_quotes WHERE client_id = ?)
+            OR EXISTS (SELECT 1 FROM sales_orders WHERE client_id = ?)
+            OR EXISTS (SELECT 1 FROM sales WHERE client_id = ?)
+        """, Boolean.class, clientId, clientId, clientId);
+    return Boolean.TRUE.equals(exists);
   }
 }

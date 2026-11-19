@@ -4,6 +4,11 @@ import com.smartstock.partners.application.usecase.CreateClientCommand;
 import com.smartstock.partners.application.usecase.ClientAlreadyExistsException;
 import com.smartstock.partners.application.usecase.CreateClientUseCase;
 import com.smartstock.partners.application.usecase.DeleteClientUseCase;
+import com.smartstock.partners.application.usecase.ClientInUseException;
+import com.smartstock.partners.application.usecase.ClientNotFoundException;
+import com.smartstock.partners.application.usecase.GetClientUseCase;
+import com.smartstock.partners.application.usecase.UpdateClientUseCase;
+import com.smartstock.partners.infrastructure.persistence.ClientPurchaseHistoryQuery;
 import com.smartstock.partners.application.usecase.ListClientsUseCase;
 import com.smartstock.partners.domain.Client;
 import java.util.List;
@@ -16,6 +21,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -28,14 +34,49 @@ public class ClientController {
   private final CreateClientUseCase createClientUseCase;
   private final ListClientsUseCase listClientsUseCase;
   private final DeleteClientUseCase deleteClientUseCase;
+  private final GetClientUseCase getClientUseCase;
+  private final UpdateClientUseCase updateClientUseCase;
+  private final ClientPurchaseHistoryQuery purchaseHistoryQuery;
 
   public ClientController(
       CreateClientUseCase createClientUseCase,
       ListClientsUseCase listClientsUseCase,
-      DeleteClientUseCase deleteClientUseCase) {
+      DeleteClientUseCase deleteClientUseCase,
+      GetClientUseCase getClientUseCase,
+      UpdateClientUseCase updateClientUseCase,
+      ClientPurchaseHistoryQuery purchaseHistoryQuery) {
     this.createClientUseCase = createClientUseCase;
     this.listClientsUseCase = listClientsUseCase;
     this.deleteClientUseCase = deleteClientUseCase;
+    this.getClientUseCase = getClientUseCase;
+    this.updateClientUseCase = updateClientUseCase;
+    this.purchaseHistoryQuery = purchaseHistoryQuery;
+  }
+
+  @GetMapping("/{clientId}")
+  public ClientResponse get(@PathVariable UUID clientId) {
+    return ClientResponse.fromDomain(getClientUseCase.execute(clientId));
+  }
+
+  @PutMapping("/{clientId}")
+  public ClientResponse update(@PathVariable UUID clientId, @RequestBody CreateClientRequest request) {
+    return ClientResponse.fromDomain(updateClientUseCase.execute(clientId, toCommand(request)));
+  }
+
+  @GetMapping("/{clientId}/history")
+  public List<ClientPurchaseHistoryQuery.Entry> history(@PathVariable UUID clientId) {
+    getClientUseCase.execute(clientId);
+    return purchaseHistoryQuery.find(clientId);
+  }
+
+  @ExceptionHandler(ClientNotFoundException.class)
+  public ResponseEntity<Map<String, String>> handleNotFound(ClientNotFoundException exception) {
+    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", exception.getMessage()));
+  }
+
+  @ExceptionHandler(ClientInUseException.class)
+  public ResponseEntity<Map<String, String>> handleInUse(ClientInUseException exception) {
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", exception.getMessage()));
   }
 
   @GetMapping
@@ -95,6 +136,7 @@ public class ClientController {
         request.complement(),
         request.district(),
         request.state(),
-        request.city());
+        request.city(),
+        request.creditLimit());
   }
 }

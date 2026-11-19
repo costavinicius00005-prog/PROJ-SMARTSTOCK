@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -75,6 +76,9 @@ public class ClientJpaEntity {
   @Column(length = 120)
   private String city;
 
+  @Column(name = "credit_limit", precision = 14, scale = 2)
+  private BigDecimal creditLimit;
+
   @Column(name = "created_at", nullable = false)
   private OffsetDateTime createdAt;
 
@@ -106,6 +110,7 @@ public class ClientJpaEntity {
       String district,
       String state,
       String city,
+      BigDecimal creditLimit,
       OffsetDateTime createdAt,
       OffsetDateTime updatedAt) {
     this.id = id;
@@ -129,6 +134,7 @@ public class ClientJpaEntity {
     this.district = district;
     this.state = state;
     this.city = city;
+    this.creditLimit = creditLimit;
     this.createdAt = createdAt;
     this.updatedAt = updatedAt;
   }
@@ -215,5 +221,13 @@ public class ClientJpaEntity {
 
   public String getCity() {
     return city;
+  }
+
+  public BigDecimal getCreditLimit() {
+    return creditLimit;
+  }
+
+  public OffsetDateTime getCreatedAt() {
+    return createdAt;
   }
 }

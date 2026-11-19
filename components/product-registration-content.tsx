@@ -41,10 +41,11 @@ const initialProduct: ProductRegistration = {
   saleMarkup: 0,
   salePrice: 0,
   barcode: "",
+  stockQuantity: 0,
   composition: [],
 }
 
-const sections = ["Dados gerais", "Unidade e codigo de barras", "Precos", "Composicao"]
+const sections = ["Dados gerais", "Unidade e codigo de barras", "Precos", "Estoque", "Composicao"]
 const variationTypes = ["Produto simples", "Produto com variacao", "Kit de produtos"]
 const numberInputClassName =
   "h-11 rounded-sm bg-white [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
@@ -83,6 +84,7 @@ export function ProductRegistrationContent({
   } = useProductRegistration(initialValue, productId)
 
   const isEditing = Boolean(productId)
+  const isKit = product.composition.length > 0
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -281,6 +283,36 @@ export function ProductRegistrationContent({
                   className={numberInputClassName}
                 />
               </Field>
+            </CardContent>
+          </Card>
+
+          <Card id="estoque" className="rounded-md border-border bg-card shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-xl font-medium text-[#17324d]">Estoque</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <div className="grid gap-5 md:grid-cols-3">
+                <Field label={isEditing ? "Quantidade em estoque" : "Estoque inicial"}>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={isKit ? "" : product.stockQuantity}
+                    placeholder={isKit ? "Calculado pelos componentes" : undefined}
+                    disabled={isKit}
+                    onFocus={selectZeroValue}
+                    onChange={(event) => updateProduct("stockQuantity", parsePricingInput(event.target.value))}
+                    className={cn(numberInputClassName, isKit && "bg-muted")}
+                  />
+                </Field>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {isKit
+                  ? "Este produto possui composicao: o estoque disponivel e calculado a partir do saldo dos componentes."
+                  : isEditing
+                    ? "Ao alterar a quantidade, um ajuste de estoque e registrado automaticamente nas movimentacoes."
+                    : "A quantidade informada e registrada como entrada de estoque inicial nas movimentacoes."}
+              </p>
             </CardContent>
           </Card>
 

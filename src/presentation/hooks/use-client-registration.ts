@@ -32,11 +32,16 @@ export const initialClientRegistration: ClientRegistration = {
   district: "",
   state: "",
   city: "",
+  creditLimit: "",
 }
 
-export function useClientRegistration(partnerKind: "client" | "supplier" = "client") {
+export function useClientRegistration(
+  partnerKind: "client" | "supplier" = "client",
+  initialValue: ClientRegistration = initialClientRegistration,
+  clientId?: string,
+) {
   const partnerLabel = partnerKind === "supplier" ? "fornecedor" : "cliente"
-  const [client, setClient] = useState<ClientRegistration>(initialClientRegistration)
+  const [client, setClient] = useState<ClientRegistration>(initialValue)
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const [errorMessage, setErrorMessage] = useState(`Nao foi possivel salvar o ${partnerLabel}.`)
 
@@ -48,7 +53,7 @@ export function useClientRegistration(partnerKind: "client" | "supplier" = "clie
   }
 
   const resetClient = () => {
-    setClient(initialClientRegistration)
+    setClient(initialValue)
     setStatus("idle")
     setErrorMessage(`Nao foi possivel salvar o ${partnerLabel}.`)
   }
@@ -58,7 +63,11 @@ export function useClientRegistration(partnerKind: "client" | "supplier" = "clie
     setErrorMessage(`Nao foi possivel salvar o ${partnerLabel}.`)
 
     try {
-      await registrations[partnerKind].execute(client)
+      if (clientId) {
+        await registrations[partnerKind].update(clientId, client)
+      } else {
+        await registrations[partnerKind].execute(client)
+      }
       setStatus("saved")
       return true
     } catch (error) {

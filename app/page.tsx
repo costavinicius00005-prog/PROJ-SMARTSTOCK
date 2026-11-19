@@ -1,12 +1,12 @@
 "use client"
 
 import { ErpLayout } from "@/components/erp-layout"
-import { DashboardContent } from "@/components/dashboard-content"
+import { QuickAccessContent } from "@/components/quick-access-content"
 
 export default function Home() {
   return (
     <ErpLayout>
-      <DashboardContent />
+      <QuickAccessContent />
     </ErpLayout>
   )
 }

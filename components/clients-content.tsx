@@ -29,6 +29,7 @@ export function ClientsContent() {
   const [clients, setClients] = useState<RegisteredClient[]>([])
   const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading")
   const [deletingClientId, setDeletingClientId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   useEffect(() => {
     const loadClients = async () => {
@@ -60,6 +61,7 @@ export function ClientsContent() {
     }
 
     setDeletingClientId(client.id)
+    setActionError(null)
 
     try {
       const response = await fetch(`/api/clients/${client.id}`, {
@@ -67,14 +69,16 @@ export function ClientsContent() {
       })
 
       if (!response.ok) {
-        throw new Error("Nao foi possivel excluir o cliente.")
+        const data = await response.json().catch(() => null)
+        throw new Error(data?.message ?? "Nao foi possivel excluir o cliente.")
       }
 
       setClients((currentClients) =>
         currentClients.filter((currentClient) => currentClient.id !== client.id),
       )
-    } catch {
-      setStatus("error")
+    } catch (error) {
+      // Mantem a lista visivel e mostra o motivo (ex.: cliente com vendas vinculadas)
+      setActionError(error instanceof Error ? error.message : "Nao foi possivel excluir o cliente.")
     } finally {
       setDeletingClientId(null)
     }
@@ -118,6 +122,12 @@ export function ClientsContent() {
           </Link>
         </Button>
       </div>
+
+      {actionError ? (
+        <div className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {actionError}
+        </div>
+      ) : null}
 
       <Card className="bg-card border-border">
         <CardHeader className="pb-3">
@@ -163,7 +173,11 @@ export function ClientsContent() {
 
               {status === "loaded" && filtered.map((client) => (
                 <TableRow key={client.id} className="hover:bg-muted/30">
-                  <TableCell className="pl-4 text-sm font-medium text-foreground">{client.name}</TableCell>
+                  <TableCell className="pl-4 text-sm font-medium text-foreground">
+                    <Link href={`/cadastros/clientes/${client.id}`} className="hover:text-primary hover:underline">
+                      {client.name}
+                    </Link>
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{client.cpf ?? client.cnpj ?? "-"}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
@@ -196,9 +210,15 @@ export function ClientsContent() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>Editar</DropdownMenuItem>
-                        <DropdownMenuItem>Ver detalhes</DropdownMenuItem>
-                        <DropdownMenuItem>Historico de compras</DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href={`/cadastros/clientes/${client.id}/editar`}>Editar</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href={`/cadastros/clientes/${client.id}`}>Ver detalhes</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href={`/cadastros/clientes/${client.id}#historico`}>Historico de compras</Link>
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           disabled={deletingClientId === client.id}

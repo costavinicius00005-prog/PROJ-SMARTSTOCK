@@ -18,5 +18,6 @@ public record CreateProductCommand(
     BigDecimal saleMarkup,
     BigDecimal salePrice,
     String barcode,
+    BigDecimal stockQuantity,
     java.util.List<com.smartstock.catalog.domain.ProductComponent> composition) {
 }

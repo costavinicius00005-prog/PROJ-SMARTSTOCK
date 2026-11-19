@@ -1,5 +1,6 @@
 package com.smartstock.partners.application.usecase;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public record CreateClientCommand(
@@ -22,5 +23,6 @@ public record CreateClientCommand(
     String complement,
     String district,
     String state,
-    String city) {
+    String city,
+    BigDecimal creditLimit) {
 }

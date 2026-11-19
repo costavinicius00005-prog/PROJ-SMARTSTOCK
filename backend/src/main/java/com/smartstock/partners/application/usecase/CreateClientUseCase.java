@@ -52,7 +52,8 @@ public class CreateClientUseCase {
         ClientInputSanitizer.blankToNull(command.complement()),
         ClientInputSanitizer.blankToNull(command.district()),
         ClientInputSanitizer.blankToNull(command.state()),
-        ClientInputSanitizer.blankToNull(command.city()));
+        ClientInputSanitizer.blankToNull(command.city()),
+        ClientInputSanitizer.creditLimit(command.creditLimit()));
 
     return clientRepository.save(client);
   }

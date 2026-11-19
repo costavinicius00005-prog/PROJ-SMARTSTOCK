@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { RegisterProduct } from "@/src/application/use-cases/catalog/register-product"
 import type { CatalogOption } from "@/src/domain/catalog/catalog-option"
 import {
@@ -23,6 +23,10 @@ type OptionGroup = "categories" | "brands" | "units-of-measure"
 
 export function useProductRegistration(initialProduct: ProductRegistration, productId?: string) {
   const [product, setProduct] = useState<ProductRegistration>(initialProduct)
+  // Ultimo saldo salvo; usado para so enviar o estoque quando ele for alterado
+  const savedStockQuantity = useRef(
+    initialProduct.stockQuantity === "" ? 0 : initialProduct.stockQuantity,
+  )
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle")
   const [optionsStatus, setOptionsStatus] = useState<"loading" | "loaded" | "error">("loading")
   const [categories, setCategories] = useState<CatalogOption[]>([])
@@ -99,7 +103,8 @@ export function useProductRegistration(initialProduct: ProductRegistration, prod
 
     try {
       if (productId) {
-        await productRegistrationApi.update(productId, product)
+        await productRegistrationApi.update(productId, product, savedStockQuantity.current)
+        savedStockQuantity.current = product.stockQuantity === "" ? 0 : product.stockQuantity
       } else {
         await registerProduct.execute(product)
       }

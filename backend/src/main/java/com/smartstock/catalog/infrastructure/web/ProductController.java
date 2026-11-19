@@ -100,6 +100,7 @@ public class ProductController {
         request.saleMarkup(),
         request.salePrice(),
         request.barcode(),
+        request.stockQuantity(),
         request.composition());
   }
 

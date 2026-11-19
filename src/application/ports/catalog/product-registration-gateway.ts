@@ -3,5 +3,5 @@ import type { ProductRegistration } from "@/src/domain/catalog/product-registrat
 export interface ProductRegistrationGateway {
   register(product: ProductRegistration): Promise<void>
 
-  update(productId: string, product: ProductRegistration): Promise<void>
+  update(productId: string, product: ProductRegistration, originalStockQuantity?: number): Promise<void>
 }

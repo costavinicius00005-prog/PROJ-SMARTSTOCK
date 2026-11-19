@@ -32,6 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { RegisteredProduct } from "@/src/domain/catalog/registered-product"
+import { ProductStockDialog } from "@/components/product-stock-dialog"
 
 type SortColumn = keyof Pick<
   RegisteredProduct,
@@ -43,6 +44,7 @@ export function ProductsContent() {
   const [products, setProducts] = useState<RegisteredProduct[]>([])
   const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading")
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null)
+  const [stockProduct, setStockProduct] = useState<RegisteredProduct | null>(null)
   const [sortColumn, setSortColumn] = useState<SortColumn>("name")
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc")
 
@@ -284,6 +286,15 @@ export function ProductsContent() {
                           <DropdownMenuItem asChild>
                             <Link href={`/cadastros/produtos/${product.id}/editar`}>Editar</Link>
                           </DropdownMenuItem>
+                          {product.composition?.length ? (
+                            <DropdownMenuItem disabled title="Kits usam o estoque dos componentes">
+                              Editar estoque (kit)
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => setStockProduct(product)}>
+                              Editar estoque
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
                             disabled={deletingProductId === product.id}
@@ -309,6 +320,14 @@ export function ProductsContent() {
           </div>
         </CardContent>
       </Card>
+
+      <ProductStockDialog
+        product={stockProduct}
+        onClose={() => setStockProduct(null)}
+        onSaved={(updated) =>
+          setProducts((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+        }
+      />
     </div>
   )
 }

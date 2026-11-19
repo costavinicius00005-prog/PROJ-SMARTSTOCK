@@ -14,19 +14,34 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { ClientType } from "@/src/domain/partners/client-registration"
-import { useClientRegistration } from "@/src/presentation/hooks/use-client-registration"
+import type { ClientRegistration, ClientType } from "@/src/domain/partners/client-registration"
+import {
+  initialClientRegistration,
+  useClientRegistration,
+} from "@/src/presentation/hooks/use-client-registration"
 
-const sections = ["Dados gerais", "Dados adicionais", "Endereco"]
 const clientTypes: ClientType[] = ["Pessoa juridica", "Pessoa fisica"]
 
 type PartnerKind = "client" | "supplier"
 
-export function ClientRegistrationContent({ partnerKind = "client" }: { partnerKind?: PartnerKind }) {
+export function ClientRegistrationContent({
+  partnerKind = "client",
+  initialValue = initialClientRegistration,
+  clientId,
+}: {
+  partnerKind?: PartnerKind
+  initialValue?: ClientRegistration
+  clientId?: string
+}) {
   const isSupplier = partnerKind === "supplier"
+  const isEditing = Boolean(clientId)
   const partnerLabel = isSupplier ? "fornecedor" : "cliente"
   const listHref = isSupplier ? "/cadastros/fornecedores" : "/cadastros/clientes"
-  const { client, status, errorMessage, updateClient, resetClient, submitClient } = useClientRegistration(partnerKind)
+  const sections = isSupplier
+    ? ["Dados gerais", "Dados adicionais", "Endereco"]
+    : ["Dados gerais", "Dados adicionais", "Credito", "Endereco"]
+  const { client, status, errorMessage, updateClient, resetClient, submitClient } =
+    useClientRegistration(partnerKind, initialValue, clientId)
   const isIndividual = client.clientType === "Pessoa fisica"
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -47,7 +62,9 @@ export function ClientRegistrationContent({ partnerKind = "client" }: { partnerK
       <div className="mx-auto grid max-w-[1580px] gap-5 lg:grid-cols-[312px_1fr]">
         <aside className="self-start rounded-md border border-border bg-card shadow-sm">
           <div className="border-b border-border px-6 py-5">
-            <h1 className="text-xl font-semibold text-foreground">Novo {partnerLabel}</h1>
+            <h1 className="text-xl font-semibold text-foreground">
+              {isEditing ? `Editar ${partnerLabel}` : `Novo ${partnerLabel}`}
+            </h1>
           </div>
 
           <nav className="px-3 py-3">
@@ -69,15 +86,17 @@ export function ClientRegistrationContent({ partnerKind = "client" }: { partnerK
           </nav>
 
           <div className="grid gap-3 px-3 pb-4">
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 rounded-sm"
-              onClick={handleSaveAndAddAnother}
-              disabled={status === "saving"}
-            >
-              Salvar e adicionar outro
-            </Button>
+            {!isEditing ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 rounded-sm"
+                onClick={handleSaveAndAddAnother}
+                disabled={status === "saving"}
+              >
+                Salvar e adicionar outro
+              </Button>
+            ) : null}
             <Button
               type="submit"
               form="client-registration-form"
@@ -222,6 +241,38 @@ export function ClientRegistrationContent({ partnerKind = "client" }: { partnerK
               )}
             </CardContent>
           </Card>
+
+          {!isSupplier ? (
+            <Card id="credito" className="rounded-md border-border bg-card shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl font-medium text-[#17324d]">Credito</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4">
+                <div className="grid gap-5 md:grid-cols-3">
+                  <Field label="Limite de credito (R$)">
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      inputMode="decimal"
+                      placeholder="Sem limite definido"
+                      value={client.creditLimit}
+                      onChange={(event) =>
+                        updateClient(
+                          "creditLimit",
+                          event.target.value === "" ? "" : Number(event.target.value),
+                        )
+                      }
+                      className="h-11 rounded-sm bg-white [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                  </Field>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Valor maximo que o cliente pode comprar a prazo. Deixe em branco para nao definir limite.
+                </p>
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card id="endereco" className="rounded-md border-border bg-card shadow-sm">
             <CardHeader>

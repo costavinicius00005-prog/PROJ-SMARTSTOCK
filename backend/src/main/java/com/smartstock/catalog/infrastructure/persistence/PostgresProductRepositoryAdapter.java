@@ -76,7 +76,7 @@ public class PostgresProductRepositoryAdapter implements ProductRepositoryPort {
             unitOfMeasure,
             existingEntity.getCreatedAt(),
             OffsetDateTime.now());
-    ProductJpaEntity savedEntity = repository.save(entity);
+    ProductJpaEntity savedEntity = repository.saveAndFlush(entity);
 
     return ProductJpaMapper.toDomain(savedEntity);
   }

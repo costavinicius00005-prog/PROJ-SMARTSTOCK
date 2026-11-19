@@ -33,8 +33,14 @@ public class StockController {
   public record LocationCreateRequest(String name, String description) {
   }
 
+  /**
+   * quantity: valor da movimentacao (ENTRADA/SAIDA positivos; AJUSTE com sinal).
+   * targetQuantity: apenas para AJUSTE sem quantity — define o saldo final do produto
+   * e a diferenca e calculada no servidor.
+   */
   public record MovementCreateRequest(
-      UUID productId, UUID locationId, String type, BigDecimal quantity, String note) {
+      UUID productId, UUID locationId, String type, BigDecimal quantity, BigDecimal targetQuantity,
+      String note) {
   }
 
   @GetMapping("/locations")
@@ -105,7 +111,7 @@ public class StockController {
   @PostMapping("/movements")
   @Transactional
   public ResponseEntity<Map<String, Object>> createMovement(@RequestBody MovementCreateRequest request) {
-    if (request.productId() == null || request.type() == null || request.quantity() == null) {
+    if (request.productId() == null || request.type() == null) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
           "Informe produto, tipo (ENTRADA/SAIDA/AJUSTE) e quantidade.");
     }
@@ -113,18 +119,36 @@ public class StockController {
     if (!TYPES.contains(type)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tipo de movimentacao invalido.");
     }
+
+    // Bloqueia a linha do produto para que movimentacoes simultaneas nao se sobrescrevam
+    List<BigDecimal> balance = jdbc.queryForList(
+        "SELECT stock_quantity FROM products WHERE id = ? FOR UPDATE", BigDecimal.class,
+        request.productId());
+    if (balance.isEmpty() || balance.getFirst() == null) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Produto nao encontrado.");
+    }
+    BigDecimal current = balance.getFirst();
+
     BigDecimal qty = request.quantity();
+    if (qty == null && "AJUSTE".equals(type) && request.targetQuantity() != null) {
+      if (request.targetQuantity().signum() < 0) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O saldo final nao pode ser negativo.");
+      }
+      qty = request.targetQuantity().subtract(current);
+      if (qty.signum() == 0) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+            "O produto ja possui esse saldo em estoque.");
+      }
+    }
+    if (qty == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+          "Informe produto, tipo (ENTRADA/SAIDA/AJUSTE) e quantidade.");
+    }
     if (qty.signum() == 0) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantidade nao pode ser zero.");
     }
     if (!"AJUSTE".equals(type) && qty.signum() < 0) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Quantidade deve ser positiva.");
-    }
-
-    BigDecimal current = jdbc.queryForObject(
-        "SELECT stock_quantity FROM products WHERE id = ?", BigDecimal.class, request.productId());
-    if (current == null) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Produto nao encontrado.");
     }
 
     BigDecimal next = switch (type) {

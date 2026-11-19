@@ -22,6 +22,7 @@ public record ProductResponse(
     BigDecimal saleMarkup,
     BigDecimal salePrice,
     String barcode,
+    BigDecimal stockQuantity,
     BigDecimal stockAvailable,
     BigDecimal estimatedCompositionCost,
     List<ProductCompositionItem> composition) {
@@ -44,6 +45,7 @@ public record ProductResponse(
         product.saleMarkup(),
         product.salePrice(),
         product.barcode(),
+        product.stockQuantity(),
         stockAvailable,
         estimatedCompositionCost,
         composition);

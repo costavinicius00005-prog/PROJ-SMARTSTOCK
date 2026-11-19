@@ -16,13 +16,20 @@ export const productRegistrationApi: ProductRegistrationGateway = {
     }
   },
 
-  async update(productId: string, product: ProductRegistration) {
+  async update(productId: string, product: ProductRegistration, originalStockQuantity?: number) {
+    const payload = toProductPayload(product)
+    // Envia o estoque apenas se ele foi alterado no formulario, para nao sobrescrever
+    // baixas feitas por vendas enquanto a tela de edicao estava aberta.
+    if (payload.stockQuantity === originalStockQuantity) {
+      payload.stockQuantity = null
+    }
+
     const response = await fetch(`/api/products/${productId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(toProductPayload(product)),
+      body: JSON.stringify(payload),
     })
 
     if (!response.ok) {
@@ -37,6 +44,7 @@ function toProductPayload(product: ProductRegistration) {
     costValue: toNumber(product.costValue),
     saleMarkup: toNumber(product.saleMarkup),
     salePrice: toNumber(product.salePrice),
+    stockQuantity: product.composition.length > 0 ? null : (toNumber(product.stockQuantity) as number | null),
   }
 }
 

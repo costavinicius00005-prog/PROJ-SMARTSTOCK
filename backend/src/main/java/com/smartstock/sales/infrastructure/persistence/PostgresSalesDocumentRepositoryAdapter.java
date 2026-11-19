@@ -144,7 +144,7 @@ public class PostgresSalesDocumentRepositoryAdapter implements SalesDocumentRepo
           received.subtract(payment.amount()).max(BigDecimal.ZERO), Math.max(1, payment.installments()));
     }
     balances.forEach((productId, balance) -> jdbc.update(
-        "INSERT INTO stock_movements(id,product_id,sale_id,type,quantity,balance_after,created_by) VALUES(?,?,?,'SALE_OUT',?,?,'system')",
+        "INSERT INTO stock_movements(id,product_id,sale_id,type,movement_type,quantity,balance_after,created_by,note) VALUES(?,?,?,'SALE_OUT','SAIDA',?,?,'system','Venda')",
         UUID.randomUUID(), productId, sale.id(), components.values().stream().map(m -> m.getOrDefault(productId, BigDecimal.ZERO)).reduce(BigDecimal.ZERO, BigDecimal::add), balance));
     return jdbc.query("SELECT * FROM sales WHERE id=?", (rs, row) -> sale(rs), sale.id()).getFirst();
   }
