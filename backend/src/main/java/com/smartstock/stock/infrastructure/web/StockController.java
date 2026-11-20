@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import com.smartstock.iam.infrastructure.security.CurrentUserProvider;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,10 +25,30 @@ public class StockController {
 
   private static final Set<String> TYPES = Set.of("ENTRADA", "SAIDA", "AJUSTE");
 
-  private final JdbcTemplate jdbc;
+  /** Motivos permitidos em movimentacoes manuais, por tipo (o primeiro e o padrao). */
+  private static final Map<String, List<String>> MANUAL_REASONS = Map.of(
+      "ENTRADA", List.of("ENTRADA_MANUAL", "COMPRA", "DEVOLUCAO"),
+      "SAIDA", List.of("SAIDA_MANUAL", "PERDA"),
+      "AJUSTE", List.of("AJUSTE"));
 
-  public StockController(JdbcTemplate jdbc) {
+  private static final String MOVEMENT_SELECT = """
+      SELECT m.id, m.product_id AS "productId", p.name AS "productName",
+             p.internal_code AS "productCode",
+             m.location_id AS "locationId", l.name AS "locationName",
+             m.movement_type AS type, m.quantity, m.balance_after AS "balanceAfter",
+             m.reason, m.origin, m.sale_id AS "saleId", m.created_by AS "createdBy",
+             m.note, m.created_at AS "createdAt"
+      FROM stock_movements m
+      JOIN products p ON p.id = m.product_id
+      LEFT JOIN stock_locations l ON l.id = m.location_id
+      """;
+
+  private final JdbcTemplate jdbc;
+  private final CurrentUserProvider currentUser;
+
+  public StockController(JdbcTemplate jdbc, CurrentUserProvider currentUser) {
     this.jdbc = jdbc;
+    this.currentUser = currentUser;
   }
 
   public record LocationCreateRequest(String name, String description) {
@@ -40,7 +61,7 @@ public class StockController {
    */
   public record MovementCreateRequest(
       UUID productId, UUID locationId, String type, BigDecimal quantity, BigDecimal targetQuantity,
-      String note) {
+      String note, String reason, String origin) {
   }
 
   @GetMapping("/locations")
@@ -95,17 +116,7 @@ public class StockController {
 
   @GetMapping("/movements")
   public List<Map<String, Object>> movements() {
-    return jdbc.queryForList("""
-        SELECT m.id, m.product_id AS "productId", p.name AS "productName",
-               p.internal_code AS "productCode",
-               m.location_id AS "locationId", l.name AS "locationName",
-               m.movement_type AS type, m.quantity, m.note, m.created_at AS "createdAt"
-        FROM stock_movements m
-        JOIN products p ON p.id = m.product_id
-        LEFT JOIN stock_locations l ON l.id = m.location_id
-        ORDER BY m.created_at DESC
-        LIMIT 300
-        """);
+    return jdbc.queryForList(MOVEMENT_SELECT + " ORDER BY m.created_at DESC LIMIT 500");
   }
 
   @PostMapping("/movements")
@@ -119,6 +130,17 @@ public class StockController {
     if (!TYPES.contains(type)) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tipo de movimentacao invalido.");
     }
+    List<String> allowedReasons = MANUAL_REASONS.get(type);
+    String reason = request.reason() == null || request.reason().isBlank()
+        ? allowedReasons.getFirst()
+        : request.reason().trim().toUpperCase();
+    if (!allowedReasons.contains(reason)) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Motivo invalido para este tipo de movimentacao.");
+    }
+    String origin = request.origin() == null || request.origin().isBlank()
+        ? "Movimentacao manual"
+        : request.origin().trim();
+    if (origin.length() > 120) origin = origin.substring(0, 120);
 
     // Bloqueia a linha do produto para que movimentacoes simultaneas nao se sobrescrevam
     List<BigDecimal> balance = jdbc.queryForList(
@@ -163,9 +185,11 @@ public class StockController {
 
     UUID movementId = UUID.randomUUID();
     jdbc.update("""
-        INSERT INTO stock_movements (id, product_id, location_id, movement_type, quantity, note)
-        VALUES (?, ?, ?, ?, ?, ?)
-        """, movementId, request.productId(), request.locationId(), type, qty, request.note());
+        INSERT INTO stock_movements (id, product_id, location_id, movement_type, quantity, balance_after,
+          note, reason, origin, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, movementId, request.productId(), request.locationId(), type, qty, next,
+        request.note(), reason, origin, currentUser.currentUserName());
     jdbc.update("UPDATE products SET stock_quantity = ?, updated_at = now() WHERE id = ?",
         next, request.productId());
 
@@ -173,16 +197,7 @@ public class StockController {
   }
 
   private Map<String, Object> findMovement(UUID id) {
-    return jdbc.queryForMap("""
-        SELECT m.id, m.product_id AS "productId", p.name AS "productName",
-               p.internal_code AS "productCode",
-               m.location_id AS "locationId", l.name AS "locationName",
-               m.movement_type AS type, m.quantity, m.note, m.created_at AS "createdAt"
-        FROM stock_movements m
-        JOIN products p ON p.id = m.product_id
-        LEFT JOIN stock_locations l ON l.id = m.location_id
-        WHERE m.id = ?
-        """, id);
+    return jdbc.queryForMap(MOVEMENT_SELECT + " WHERE m.id = ?", id);
   }
 
   @GetMapping("/summary")

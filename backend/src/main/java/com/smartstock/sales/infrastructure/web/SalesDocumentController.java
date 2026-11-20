@@ -1,6 +1,8 @@
 package com.smartstock.sales.infrastructure.web;
 
+import com.smartstock.iam.infrastructure.security.CurrentUserProvider;
 import com.smartstock.sales.application.usecase.SalesDocumentService;
+import com.smartstock.sales.domain.SaleReceipt;
 import com.smartstock.sales.domain.SalesOrder;
 import com.smartstock.sales.domain.SalesQuote;
 import com.smartstock.sales.domain.PaymentMethod;
@@ -24,7 +26,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/sales")
 public class SalesDocumentController {
   private final SalesDocumentService service;
-  public SalesDocumentController(SalesDocumentService service) { this.service = service; }
+  private final CurrentUserProvider currentUser;
+  public SalesDocumentController(SalesDocumentService service, CurrentUserProvider currentUser) {
+    this.service = service; this.currentUser = currentUser;
+  }
+
+  public record CancelSaleRequest(String reason) {}
 
   @GetMapping("/quotes") public List<SalesQuote> listQuotes() { return service.listQuotes(); }
   @GetMapping("/quotes/{id}") public SalesQuote getQuote(@PathVariable UUID id) { return service.getQuote(id); }
@@ -44,6 +51,18 @@ public class SalesDocumentController {
     service.cancelOrder(id); return ResponseEntity.noContent().build();
   }
   @GetMapping("/checkout/payment-methods") public List<PaymentMethod> paymentMethods() { return service.listPaymentMethods(); }
+  /** Finaliza a venda e devolve o comprovante com os dados exatamente como foram gravados. */
   @PostMapping("/checkout/complete") @ResponseStatus(HttpStatus.CREATED)
-  public Sale complete(@RequestBody CompleteSaleRequest request) { return service.completeSale(request.toCommand()); }
+  public SaleReceipt complete(@RequestBody CompleteSaleRequest request) {
+    Sale sale = service.completeSale(request.toCommand(), currentUser.currentUserName());
+    return service.getSaleReceipt(sale.id());
+  }
+  @GetMapping("/checkout/sales") public List<SaleReceipt> recentSales(@RequestParam(defaultValue = "50") int limit) {
+    return service.listRecentSales(limit);
+  }
+  @GetMapping("/checkout/sales/{id}") public SaleReceipt sale(@PathVariable UUID id) { return service.getSaleReceipt(id); }
+  @PostMapping("/checkout/sales/{id}/cancel")
+  public SaleReceipt cancelSale(@PathVariable UUID id, @RequestBody(required = false) CancelSaleRequest request) {
+    return service.cancelSale(id, request == null ? null : request.reason(), currentUser.currentUserName());
+  }
 }

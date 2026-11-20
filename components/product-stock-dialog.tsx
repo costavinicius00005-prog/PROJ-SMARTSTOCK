@@ -91,7 +91,7 @@ export function ProductStockDialog({
       const response = await fetch("/api/stock/movements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...body, note: note.trim() || defaultNote }),
+        body: JSON.stringify({ ...body, note: note.trim() || defaultNote, origin: "Listagem de produtos" }),
       })
       const json = await response.json().catch(() => null)
       if (!response.ok) throw new Error(json?.message ?? "Nao foi possivel atualizar o estoque.")

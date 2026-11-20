@@ -12,6 +12,7 @@ import com.smartstock.sales.domain.SalesQuote;
 import com.smartstock.sales.domain.SalesQuoteStatus;
 import com.smartstock.sales.domain.PaymentMethod;
 import com.smartstock.sales.domain.Sale;
+import com.smartstock.sales.domain.SaleReceipt;
 import com.smartstock.catalog.application.port.ProductCompositionRepositoryPort;
 import com.smartstock.catalog.domain.ProductComponent;
 import java.util.LinkedHashMap;
@@ -45,15 +46,34 @@ public class SalesDocumentService {
   public SalesOrder getOrder(UUID id) { return repository.findOrder(id).orElseThrow(() -> new IllegalArgumentException("Pedido nao encontrado.")); }
   public List<PaymentMethod> listPaymentMethods() { return repository.listPaymentMethods(); }
 
+  public SaleReceipt getSaleReceipt(UUID saleId) {
+    return repository.findSaleReceipt(saleId).orElseThrow(() -> new IllegalArgumentException("Venda nao encontrada."));
+  }
+  public List<SaleReceipt> listRecentSales(int limit) { return repository.listRecentSales(Math.max(1, Math.min(limit, 200))); }
+
+  /**
+   * Finaliza uma venda direta ou o faturamento de um pedido em UMA transacao: valida pagamentos e
+   * estoque, baixa o estoque, grava venda/itens/pagamentos/movimentacoes. Qualquer erro desfaz tudo.
+   * Reenvios (mesmo requestId ou pedido ja faturado) devolvem a venda existente sem nova baixa.
+   */
   @Transactional
-  public Sale completeSale(CompleteSaleCommand command) {
+  public Sale completeSale(CompleteSaleCommand command) { return completeSale(command, "sistema"); }
+
+  @Transactional
+  public Sale completeSale(CompleteSaleCommand command, String operator) {
+    if (command.requestId() != null) {
+      repository.lockSaleRequest(command.requestId());
+      Sale previous = repository.findSaleByRequestId(command.requestId()).orElse(null);
+      if (previous != null) return previous;
+    }
     SalesOrder order = null;
     if (command.salesOrderId() != null) {
       Sale completed = repository.findSaleByOrder(command.salesOrderId()).orElse(null);
-      if (completed != null) return completed;
+      if (completed != null && "COMPLETED".equals(completed.status())) return completed;
       order = repository.findOrderForUpdate(command.salesOrderId()).orElseThrow(() -> new IllegalArgumentException("Pedido nao encontrado."));
       completed = repository.findSaleByOrder(command.salesOrderId()).orElse(null);
-      if (completed != null) return completed;
+      if (completed != null && "COMPLETED".equals(completed.status())) return completed;
+      if (completed != null) throw new IllegalArgumentException("O faturamento deste pedido foi cancelado.");
       if (order.status() != SalesOrderStatus.OPEN && order.status() != SalesOrderStatus.CONFIRMED)
         throw new IllegalArgumentException("Este pedido nao esta disponivel para faturamento.");
     }
@@ -86,9 +106,34 @@ public class SalesDocumentService {
     Sale draft = new Sale(UUID.randomUUID(), 0, order == null ? "DIRECT_SALE" : "SALES_ORDER",
         order == null ? null : order.id(), clientId, client == null ? null : client.name(), subtotal,
         itemDiscount, generalDiscount, freight, total, "COMPLETED", items, OffsetDateTime.now());
-    Sale saved = repository.saveSale(draft, command.payments(), snapshots, balances);
+    Sale saved = repository.saveSale(draft, command.payments(), snapshots, balances, command.requestId(), operator);
     if (order != null) repository.updateOrderStatus(order.id(), SalesOrderStatus.FULFILLED.name());
     return saved;
+  }
+
+  /**
+   * Cancela uma venda: devolve ao estoque exatamente o que ela baixou (movimentacao de entrada
+   * "Cancelamento de venda"), mantendo venda, pagamentos e movimentacoes originais no historico.
+   * Se a venda veio de um pedido, o pedido tambem e cancelado (um pedido so pode ser faturado uma vez).
+   */
+  @Transactional
+  public SaleReceipt cancelSale(UUID saleId, String reason, String operator) {
+    Sale sale = repository.findSaleForUpdate(saleId).orElseThrow(() -> new IllegalArgumentException("Venda nao encontrada."));
+    if ("CANCELLED".equals(sale.status())) throw new IllegalArgumentException("Esta venda ja foi cancelada.");
+    String cleanReason = reason == null || reason.isBlank() ? null : reason.trim();
+    if (cleanReason != null && cleanReason.length() > 255) cleanReason = cleanReason.substring(0, 255);
+
+    Map<UUID, BigDecimal> stockOut = repository.findSaleStockOut(saleId);
+    stockOut.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
+      Product product = products.findByIdForUpdate(entry.getKey())
+          .orElseThrow(() -> new IllegalArgumentException("Produto da venda nao encontrado."));
+      BigDecimal balance = product.stockQuantity().add(entry.getValue());
+      products.updateStock(product.id(), balance);
+      repository.recordSaleReversal(saleId, product.id(), entry.getValue(), balance, operator);
+    });
+    repository.markSaleCancelled(saleId, operator, cleanReason);
+    if (sale.salesOrderId() != null) repository.updateOrderStatus(sale.salesOrderId(), SalesOrderStatus.CANCELLED.name());
+    return getSaleReceipt(saleId);
   }
 
   private List<SalesDocumentItem> directItems(List<CompleteSaleCommand.Item> requested) {

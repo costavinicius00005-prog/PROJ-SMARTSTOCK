@@ -6,6 +6,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { ErpSidebar } from "@/components/erp-sidebar"
 import { ErpHeader } from "@/components/erp-header"
 import { Spinner } from "@/components/ui/spinner"
+import { Toaster } from "@/components/ui/toaster"
 import { useAuth } from "@/components/auth/auth-context"
 
 export function ErpLayout({ children }: { children: React.ReactNode }) {
@@ -35,6 +36,7 @@ export function ErpLayout({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </SidebarInset>
+      <Toaster />
     </SidebarProvider>
   )
 }

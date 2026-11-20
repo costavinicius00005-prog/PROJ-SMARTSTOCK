@@ -4,8 +4,11 @@ import com.smartstock.sales.domain.SalesOrder;
 import com.smartstock.sales.domain.SalesQuote;
 import com.smartstock.sales.domain.PaymentMethod;
 import com.smartstock.sales.domain.Sale;
+import com.smartstock.sales.domain.SaleReceipt;
 import com.smartstock.sales.application.usecase.CompleteSaleCommand;
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -23,7 +26,25 @@ public interface SalesDocumentRepositoryPort {
   void updateOrderStatus(UUID id, String status);
   List<PaymentMethod> listPaymentMethods();
   Optional<Sale> findSaleByOrder(UUID orderId);
+
+  /** Serializa (lock transacional) tentativas concorrentes com o mesmo identificador de requisicao. */
+  void lockSaleRequest(UUID requestId);
+  Optional<Sale> findSaleByRequestId(UUID requestId);
+
+  /**
+   * Grava venda, itens, componentes, pagamentos e as saidas de estoque (uma por produto) na
+   * transacao corrente. balances = saldo final de cada produto baixado.
+   */
   Sale saveSale(Sale sale, List<CompleteSaleCommand.Payment> payments,
-      java.util.Map<UUID, java.util.Map<UUID, java.math.BigDecimal>> components,
-      java.util.Map<UUID, java.math.BigDecimal> balances);
+      Map<UUID, Map<UUID, BigDecimal>> components, Map<UUID, BigDecimal> balances,
+      UUID requestId, String operator);
+
+  Optional<SaleReceipt> findSaleReceipt(UUID saleId);
+  List<SaleReceipt> listRecentSales(int limit);
+
+  Optional<Sale> findSaleForUpdate(UUID saleId);
+  /** Quantidades efetivamente baixadas pela venda, por produto (a partir das movimentacoes). */
+  Map<UUID, BigDecimal> findSaleStockOut(UUID saleId);
+  void recordSaleReversal(UUID saleId, UUID productId, BigDecimal quantity, BigDecimal balanceAfter, String operator);
+  void markSaleCancelled(UUID saleId, String operator, String reason);
 }

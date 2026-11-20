@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server"
+import { authHeader } from "@/lib/server-auth"
 
 const apiBaseUrl = process.env.API_INTERNAL_URL ?? "http://localhost:8080"
 
 async function forward(request: Request, init: RequestInit = {}) {
   const response = await fetch(`${apiBaseUrl}/api/stock/movements`, {
     cache: "no-store",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeader(request) },
     ...init,
   })
   const data = await response.text()

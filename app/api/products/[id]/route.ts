@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { authHeader } from "@/lib/server-auth"
 
 const apiBaseUrl = process.env.API_INTERNAL_URL ?? "http://localhost:8080"
 
@@ -30,6 +31,7 @@ export async function PUT(request: Request, context: ProductRouteContext) {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
+      ...authHeader(request),
     },
     body: await request.text(),
   })

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Package, ArrowDownCircle, ArrowUpCircle, AlertTriangle, MapPin, PlusCircle, RefreshCw } from "lucide-react"
+import { MANUAL_REASONS, MOVEMENT_REASON_LABELS, reasonLabel } from "@/src/domain/stock/movement-reasons"
 
 type Summary = {
   productCount: number
@@ -28,12 +29,17 @@ type Movement = {
   locationName: string | null
   type: "ENTRADA" | "SAIDA" | "AJUSTE"
   quantity: number
+  balanceAfter: number | null
+  reason: string
+  origin: string | null
+  saleId: string | null
+  createdBy: string | null
   note: string | null
   createdAt: string
 }
 
 const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+  new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" })
 
 export function StockMovementsContent() {
   const [summary, setSummary] = React.useState<Summary | null>(null)
@@ -43,7 +49,14 @@ export function StockMovementsContent() {
   const [loading, setLoading] = React.useState(true)
   const [feedback, setFeedback] = React.useState<{ type: "ok" | "error"; text: string } | null>(null)
   const [saving, setSaving] = React.useState(false)
-  const [form, setForm] = React.useState({ productId: "", type: "ENTRADA", quantity: "", locationId: "", note: "" })
+  const [form, setForm] = React.useState({ productId: "", type: "ENTRADA", reason: "ENTRADA_MANUAL", quantity: "", locationId: "", note: "" })
+  const [filter, setFilter] = React.useState({ text: "", reason: "" })
+  const visibleMovements = React.useMemo(() => {
+    const term = filter.text.trim().toLocaleLowerCase("pt-BR")
+    return movements.filter((m) =>
+      (!filter.reason || m.reason === filter.reason) &&
+      (!term || `${m.productName} ${m.productCode} ${m.origin ?? ""} ${m.createdBy ?? ""} ${m.note ?? ""}`.toLocaleLowerCase("pt-BR").includes(term)))
+  }, [movements, filter])
 
   async function load() {
     setLoading(true)
@@ -81,6 +94,7 @@ export function StockMovementsContent() {
         body: JSON.stringify({
           productId: form.productId,
           type: form.type,
+          reason: form.reason,
           quantity: form.type === "AJUSTE" ? quantity : Math.abs(quantity),
           locationId: form.locationId || null,
           note: form.note || null,
@@ -183,7 +197,7 @@ export function StockMovementsContent() {
           <PlusCircle className="size-4 text-muted-foreground" />
           <h2 className="text-sm font-semibold text-foreground">Nova movimentacao</h2>
         </div>
-        <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+        <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
           <div className="space-y-1.5">
             <Label htmlFor="product">Produto</Label>
             <select
@@ -206,12 +220,27 @@ export function StockMovementsContent() {
             <select
               id="type"
               value={form.type}
-              onChange={(e) => setForm({ ...form, type: e.target.value })}
+              onChange={(e) => setForm({ ...form, type: e.target.value, reason: MANUAL_REASONS[e.target.value as keyof typeof MANUAL_REASONS][0] })}
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
             >
               <option value="ENTRADA">Entrada</option>
               <option value="SAIDA">Saida</option>
               <option value="AJUSTE">Ajuste (+/-)</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="reason">Motivo</Label>
+            <select
+              id="reason"
+              value={form.reason}
+              onChange={(e) => setForm({ ...form, reason: e.target.value })}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+            >
+              {MANUAL_REASONS[form.type as keyof typeof MANUAL_REASONS].map((code) => (
+                <option key={code} value={code}>
+                  {MOVEMENT_REASON_LABELS[code]}
+                </option>
+              ))}
             </select>
           </div>
           <div className="space-y-1.5">
@@ -259,50 +288,105 @@ export function StockMovementsContent() {
       </div>
 
       <div className="rounded-xl border border-border bg-card p-5">
-        <h2 className="text-sm font-semibold text-foreground mb-4">Historico de movimentacoes</h2>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">Historico de movimentacoes</h2>
+            <p className="text-xs text-muted-foreground">
+              Toda alteracao de estoque (vendas, faturamentos, cancelamentos, cadastro e lancamentos manuais) aparece aqui.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Input
+              value={filter.text}
+              onChange={(e) => setFilter({ ...filter, text: e.target.value })}
+              placeholder="Produto, origem, usuario..."
+              className="h-9 w-56"
+            />
+            <select
+              aria-label="Filtrar por motivo"
+              value={filter.reason}
+              onChange={(e) => setFilter({ ...filter, reason: e.target.value })}
+              className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+            >
+              <option value="">Todos os motivos</option>
+              {Object.entries(MOVEMENT_REASON_LABELS).map(([code, label]) => (
+                <option key={code} value={code}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-muted-foreground">
-                <th className="pb-2 pr-4 font-medium">Data</th>
+                <th className="pb-2 pr-4 font-medium">Data e hora</th>
                 <th className="pb-2 pr-4 font-medium">Produto</th>
                 <th className="pb-2 pr-4 font-medium">Tipo</th>
-                <th className="pb-2 pr-4 font-medium">Quantidade</th>
+                <th className="pb-2 pr-4 font-medium text-right">Quantidade</th>
+                <th className="pb-2 pr-4 font-medium text-right">Saldo apos</th>
+                <th className="pb-2 pr-4 font-medium">Motivo</th>
+                <th className="pb-2 pr-4 font-medium">Origem</th>
+                <th className="pb-2 pr-4 font-medium">Usuario</th>
                 <th className="pb-2 pr-4 font-medium">Local</th>
                 <th className="pb-2 font-medium">Observacao</th>
               </tr>
             </thead>
             <tbody>
-              {movements.map((m) => (
-                <tr key={m.id} className="border-b border-border/60">
-                  <td className="py-2.5 pr-4 text-muted-foreground whitespace-nowrap">{fmtDate(m.createdAt)}</td>
-                  <td className="py-2.5 pr-4 text-foreground">{m.productName}</td>
-                  <td className="py-2.5 pr-4">
-                    <Badge
-                      variant="secondary"
-                      className={
-                        m.type === "ENTRADA"
-                          ? "bg-emerald-500/10 text-emerald-700"
-                          : m.type === "SAIDA"
-                            ? "bg-red-500/10 text-red-600"
-                            : "bg-amber-500/10 text-amber-700"
-                      }
-                    >
-                      {m.type === "ENTRADA" ? "Entrada" : m.type === "SAIDA" ? "Saida" : "Ajuste"}
-                    </Badge>
-                  </td>
-                  <td className="py-2.5 pr-4 font-medium text-foreground">
-                    {m.type === "ENTRADA" ? "+" : m.type === "SAIDA" ? "-" : ""}
-                    {m.quantity}
-                  </td>
-                  <td className="py-2.5 pr-4 text-muted-foreground">{m.locationName ?? "-"}</td>
-                  <td className="py-2.5 text-muted-foreground">{m.note ?? "-"}</td>
-                </tr>
-              ))}
-              {movements.length === 0 && (
+              {visibleMovements.map((m) => {
+                const sign = m.type === "ENTRADA" ? "+" : m.type === "SAIDA" ? "-" : Number(m.quantity) > 0 ? "+" : ""
+                return (
+                  <tr key={m.id} className="border-b border-border/60">
+                    <td className="py-2.5 pr-4 text-muted-foreground whitespace-nowrap">{fmtDate(m.createdAt)}</td>
+                    <td className="py-2.5 pr-4 text-foreground">
+                      {m.productName}
+                      <span className="block text-xs text-muted-foreground">{m.productCode}</span>
+                    </td>
+                    <td className="py-2.5 pr-4">
+                      <Badge
+                        variant="secondary"
+                        className={
+                          m.type === "ENTRADA"
+                            ? "bg-emerald-500/10 text-emerald-700"
+                            : m.type === "SAIDA"
+                              ? "bg-red-500/10 text-red-600"
+                              : "bg-amber-500/10 text-amber-700"
+                        }
+                      >
+                        {m.type === "ENTRADA" ? "Entrada" : m.type === "SAIDA" ? "Saida" : "Ajuste"}
+                      </Badge>
+                    </td>
+                    <td className="py-2.5 pr-4 text-right font-medium text-foreground whitespace-nowrap">
+                      {sign}
+                      {Number(m.quantity)}
+                    </td>
+                    <td className="py-2.5 pr-4 text-right text-muted-foreground">{m.balanceAfter ?? "-"}</td>
+                    <td className="py-2.5 pr-4 text-foreground whitespace-nowrap">{reasonLabel(m.reason)}</td>
+                    <td className="py-2.5 pr-4 text-muted-foreground whitespace-nowrap">
+                      {m.saleId ? (
+                        <a
+                          href={`/vendas/comprovante/${m.saleId}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          {m.origin ?? "Venda"}
+                        </a>
+                      ) : (
+                        m.origin ?? "-"
+                      )}
+                    </td>
+                    <td className="py-2.5 pr-4 text-muted-foreground">{m.createdBy ?? "-"}</td>
+                    <td className="py-2.5 pr-4 text-muted-foreground">{m.locationName ?? "-"}</td>
+                    <td className="py-2.5 text-muted-foreground">{m.note ?? "-"}</td>
+                  </tr>
+                )
+              })}
+              {visibleMovements.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-6 text-center text-muted-foreground">
-                    Nenhuma movimentacao lancada ainda.
+                  <td colSpan={10} className="py-6 text-center text-muted-foreground">
+                    {movements.length === 0 ? "Nenhuma movimentacao lancada ainda." : "Nenhuma movimentacao encontrada para o filtro."}
                   </td>
                 </tr>
               )}
