@@ -12,7 +12,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { UserPlus, RefreshCw } from "lucide-react"
 import { apiFetch, type SessionUser } from "@/lib/auth-client"
 
-const ROLES = ["ADMIN", "OPERADOR"]
+const ROLES = ["ADMIN", "FINANCEIRO", "OPERADOR"]
 
 export default function AdminPage() {
   const { user, loading } = useAuth()

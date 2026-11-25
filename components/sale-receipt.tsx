@@ -119,6 +119,18 @@ export function SaleReceiptView({ sale, store }: { sale: SaleReceipt; store: Sto
       <Row label="Valor recebido" value={money(sale.totalReceived)} />
       <Row label="Troco" value={money(sale.totalChange)} />
 
+      {sale.creditInstallments?.length ? (
+        <>
+          <Divider />
+          <p className="font-bold">CREDIARIO - TITULO Nº {sale.receivableNumber}</p>
+          {sale.creditInstallments.map((p) => (
+            <Row key={p.number} label={`Parcela ${p.number}/${sale.creditInstallments.length} - venc. ${new Date(`${p.dueDate}T00:00:00`).toLocaleDateString("pt-BR")}`} value={money(p.amount)} />
+          ))}
+          <p className="mt-6 border-t border-black pt-1 text-center text-[10px]">Assinatura do cliente</p>
+          <p className="text-center text-[9px]">Reconheco a divida acima e me comprometo a paga-la nos vencimentos indicados.</p>
+        </>
+      ) : null}
+
       {cancelled ? (
         <>
           <Divider />

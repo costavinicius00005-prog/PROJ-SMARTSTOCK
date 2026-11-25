@@ -35,12 +35,13 @@ class SalesDocumentServiceTest {
   @Mock ClientRepositoryPort clients;
   @Mock ProductRepositoryPort products;
   @Mock ProductCompositionRepositoryPort compositions;
+  @Mock com.smartstock.sales.application.port.CreditSalePort credit;
   SalesDocumentService service;
   UUID clientId = UUID.randomUUID();
   UUID productId = UUID.randomUUID();
 
   @BeforeEach void setUp() {
-    service = new SalesDocumentService(repository, clients, products, compositions);
+    service = new SalesDocumentService(repository, clients, products, compositions, credit);
   }
 
   @Test void recalculatesAndPreservesNegotiatedValues() {
@@ -140,6 +141,79 @@ class SalesDocumentServiceTest {
     service.cancelSale(saleId, null, "operador");
 
     verify(repository).updateOrderStatus(orderId, SalesOrderStatus.CANCELLED.name());
+  }
+
+  // ---------- crediario no caixa ----------
+  UUID pixId = UUID.randomUUID(), creditId = UUID.randomUUID();
+  CompleteSaleCommand.CreditPlan plan = new CompleteSaleCommand.CreditPlan(4, "MONTHLY", null, LocalDate.now().plusMonths(1));
+
+  private void stubCheckout() {
+    when(repository.listPaymentMethods()).thenReturn(List.of(
+        new com.smartstock.sales.domain.PaymentMethod(pixId, "PIX", "PIX", "INSTANT", false, false),
+        new com.smartstock.sales.domain.PaymentMethod(creditId, "CREDIARIO", "Crediario", "CREDIT", false, true)));
+    when(products.findById(productId)).thenReturn(Optional.of(product()));
+  }
+
+  private CompleteSaleCommand creditSale(UUID client, List<CompleteSaleCommand.Payment> payments) {
+    // produto a R$ 10 x 10 = R$ 100
+    return new CompleteSaleCommand(null, client, BigDecimal.ZERO, "",
+        List.of(new CompleteSaleCommand.Item(productId, BigDecimal.TEN, BigDecimal.ZERO)), payments, UUID.randomUUID(), plan);
+  }
+
+  @Test void creditSaleWithDownPaymentRegistersOnlyTheFinancedAmount() {
+    stubCheckout();
+    when(clients.findById(clientId)).thenReturn(Optional.of(client()));
+    when(products.findByIdForUpdate(productId)).thenReturn(Optional.of(product()));
+    when(repository.saveSale(any(), any(), any(), any(), any(), any())).thenAnswer(inv -> inv.getArgument(0));
+    var payments = List.of(new CompleteSaleCommand.Payment(pixId, new BigDecimal("20"), new BigDecimal("20"), 1),
+        new CompleteSaleCommand.Payment(creditId, new BigDecimal("80"), new BigDecimal("80"), 1));
+
+    var sale = service.completeSale(creditSale(clientId, payments), "operador");
+
+    verify(credit).registerCreditSale(sale.id(), clientId, new BigDecimal("100.00"), new BigDecimal("80.00"), plan, "operador");
+  }
+
+  @Test void fullCreditSaleRegistersTheWholeTotal() {
+    stubCheckout();
+    when(clients.findById(clientId)).thenReturn(Optional.of(client()));
+    when(products.findByIdForUpdate(productId)).thenReturn(Optional.of(product()));
+    when(repository.saveSale(any(), any(), any(), any(), any(), any())).thenAnswer(inv -> inv.getArgument(0));
+    var sale = service.completeSale(creditSale(clientId, List.of(
+        new CompleteSaleCommand.Payment(creditId, new BigDecimal("100"), new BigDecimal("100"), 1))), "operador");
+    verify(credit).registerCreditSale(sale.id(), clientId, new BigDecimal("100.00"), new BigDecimal("100.00"), plan, "operador");
+  }
+
+  @Test void creditSaleWithoutClientOrLoginIsRejectedBeforeTouchingStock() {
+    stubCheckout();
+    var payments = List.of(new CompleteSaleCommand.Payment(creditId, new BigDecimal("100"), new BigDecimal("100"), 1));
+    var noClient = assertThrows(IllegalArgumentException.class, () -> service.completeSale(creditSale(null, payments), "operador"));
+    assertEquals("Selecione um cliente cadastrado para vender no crediario.", noClient.getMessage());
+
+    when(clients.findById(clientId)).thenReturn(Optional.of(client()));
+    assertThrows(IllegalArgumentException.class, () -> service.completeSale(creditSale(clientId, payments), "sistema"));
+    verify(products, never()).updateStock(any(), any());
+    verify(credit, never()).registerCreditSale(any(), any(), any(), any(), any(), any());
+  }
+
+  @Test void onlyOneCreditLineAndExactTotalAreAccepted() {
+    stubCheckout();
+    when(clients.findById(clientId)).thenReturn(Optional.of(client()));
+    var twoLines = List.of(new CompleteSaleCommand.Payment(creditId, new BigDecimal("50"), new BigDecimal("50"), 1),
+        new CompleteSaleCommand.Payment(creditId, new BigDecimal("50"), new BigDecimal("50"), 1));
+    assertThrows(IllegalArgumentException.class, () -> service.completeSale(creditSale(clientId, twoLines), "operador"));
+    var shortPayment = List.of(new CompleteSaleCommand.Payment(creditId, new BigDecimal("90"), new BigDecimal("90"), 1));
+    assertThrows(IllegalArgumentException.class, () -> service.completeSale(creditSale(clientId, shortPayment), "operador"));
+    verify(products, never()).updateStock(any(), any());
+  }
+
+  @Test void saleCancellationAsksCreditModuleFirst() {
+    UUID saleId = UUID.randomUUID();
+    when(repository.findSaleForUpdate(saleId)).thenReturn(Optional.of(sale(saleId, "COMPLETED", null)));
+    org.mockito.Mockito.doThrow(new IllegalArgumentException("Estorne os recebimentos antes"))
+        .when(credit).cancelCreditSale(saleId, "operador", null);
+    assertThrows(IllegalArgumentException.class, () -> service.cancelSale(saleId, null, "operador"));
+    verify(products, never()).updateStock(any(), any());
+    verify(repository, never()).markSaleCancelled(any(), any(), any());
   }
 
   private com.smartstock.sales.domain.Sale sale(UUID id, String status, UUID orderId) {

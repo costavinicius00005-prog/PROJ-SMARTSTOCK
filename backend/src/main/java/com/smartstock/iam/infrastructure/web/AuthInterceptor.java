@@ -13,7 +13,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 public class AuthInterceptor implements HandlerInterceptor {
 
   static final String AUTH_USER_ID = "smartstock.auth.userId";
-  static final String AUTH_USER_ROLE = "smartstock.auth.role";
+  public static final String AUTH_USER_ROLE = "smartstock.auth.role";
 
   private final TokenService tokenService;
   private final ObjectMapper objectMapper;

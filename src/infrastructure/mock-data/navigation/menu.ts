@@ -38,6 +38,8 @@ export const navigationMenu: NavigationItem[] = [
     children: [
       { title: "Contas a Pagar", href: "/financeiro/contas-pagar" },
       { title: "Contas a Receber", href: "/financeiro/contas-receber" },
+      { title: "Crediario", href: "/financeiro/crediario" },
+      { title: "Relatorios de Crediario", href: "/financeiro/crediario/relatorios" },
       { title: "Boletos", href: "/financeiro/boletos" },
       { title: "Mensalidades", href: "/financeiro/mensalidades" },
     ],

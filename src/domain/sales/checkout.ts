@@ -37,4 +37,7 @@ export interface SaleReceipt {
   cancelledAt: string | null
   cancelledBy: string | null
   cancelReason: string | null
+  /** Numero do titulo do crediario gerado pela venda (null se nao houve crediario). */
+  receivableNumber: number | null
+  creditInstallments: Array<{ number: number; dueDate: string; amount: number; status: string }>
 }

@@ -32,7 +32,13 @@ public record SaleReceipt(
     OffsetDateTime createdAt,
     OffsetDateTime cancelledAt,
     String cancelledBy,
-    String cancelReason) {
+    String cancelReason,
+    Long receivableNumber,
+    List<CreditInstallment> creditInstallments) {
+
+  /** Parcela do crediario gerada pela venda (impressa no comprovante para o cliente). */
+  public record CreditInstallment(int number, java.time.LocalDate dueDate, BigDecimal amount, String status) {
+  }
 
   public record Payment(
       String methodCode,

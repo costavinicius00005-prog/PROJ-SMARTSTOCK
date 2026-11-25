@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class CreateUserUseCase {
 
-  private static final Set<String> VALID_ROLES = Set.of("ADMIN", "OPERADOR");
+  private static final Set<String> VALID_ROLES = Set.of("ADMIN", "FINANCEIRO", "OPERADOR");
 
   private final UserRepositoryPort userRepository;
   private final PasswordEncoderPort passwordEncoder;

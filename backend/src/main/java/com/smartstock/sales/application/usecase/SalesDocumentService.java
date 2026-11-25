@@ -4,6 +4,7 @@ import com.smartstock.catalog.application.port.ProductRepositoryPort;
 import com.smartstock.catalog.domain.Product;
 import com.smartstock.partners.application.port.ClientRepositoryPort;
 import com.smartstock.partners.domain.Client;
+import com.smartstock.sales.application.port.CreditSalePort;
 import com.smartstock.sales.application.port.SalesDocumentRepositoryPort;
 import com.smartstock.sales.domain.SalesDocumentItem;
 import com.smartstock.sales.domain.SalesOrder;
@@ -34,10 +35,12 @@ public class SalesDocumentService {
   private final ClientRepositoryPort clients;
   private final ProductRepositoryPort products;
   private final ProductCompositionRepositoryPort compositions;
+  private final CreditSalePort credit;
 
   public SalesDocumentService(SalesDocumentRepositoryPort repository, ClientRepositoryPort clients,
-      ProductRepositoryPort products, ProductCompositionRepositoryPort compositions) {
+      ProductRepositoryPort products, ProductCompositionRepositoryPort compositions, CreditSalePort credit) {
     this.repository = repository; this.clients = clients; this.products = products; this.compositions = compositions;
+    this.credit = credit;
   }
 
   public List<SalesQuote> listQuotes() { return repository.listQuotes(); }
@@ -86,7 +89,13 @@ public class SalesDocumentService {
     BigDecimal freight = order == null ? BigDecimal.ZERO.setScale(2) : order.freight();
     BigDecimal total = money(subtotal.subtract(itemDiscount).subtract(generalDiscount).add(freight));
     if (total.signum() < 0) throw new IllegalArgumentException("O desconto nao pode superar o total.");
-    validatePayments(command.payments(), total);
+    BigDecimal creditAmount = validatePayments(command.payments(), total);
+    if (creditAmount.signum() > 0) {
+      // Crediario: cliente identificado, condicoes informadas e operador autenticado (auditoria financeira)
+      if (client == null) throw new IllegalArgumentException("Selecione um cliente cadastrado para vender no crediario.");
+      if (command.credit() == null) throw new IllegalArgumentException("Informe as condicoes do crediario (parcelas e vencimentos).");
+      if (operator == null || "sistema".equals(operator)) throw new IllegalArgumentException("Faca login para vender no crediario.");
+    }
     Map<UUID, Map<UUID, BigDecimal>> snapshots = new LinkedHashMap<>();
     Map<UUID, BigDecimal> required = new LinkedHashMap<>();
     for (SalesDocumentItem item : items) {
@@ -108,6 +117,9 @@ public class SalesDocumentService {
         itemDiscount, generalDiscount, freight, total, "COMPLETED", items, OffsetDateTime.now());
     Sale saved = repository.saveSale(draft, command.payments(), snapshots, balances, command.requestId(), operator);
     if (order != null) repository.updateOrderStatus(order.id(), SalesOrderStatus.FULFILLED.name());
+    if (creditAmount.signum() > 0) {
+      credit.registerCreditSale(saved.id(), clientId, total, creditAmount, command.credit(), operator);
+    }
     return saved;
   }
 
@@ -123,6 +135,8 @@ public class SalesDocumentService {
     String cleanReason = reason == null || reason.isBlank() ? null : reason.trim();
     if (cleanReason != null && cleanReason.length() > 255) cleanReason = cleanReason.substring(0, 255);
 
+    // Crediario primeiro: se ja houver recebimentos, o cancelamento e recusado antes de mexer no estoque
+    credit.cancelCreditSale(saleId, operator, cleanReason);
     Map<UUID, BigDecimal> stockOut = repository.findSaleStockOut(saleId);
     stockOut.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
       Product product = products.findByIdForUpdate(entry.getKey())
@@ -157,19 +171,24 @@ public class SalesDocumentService {
     else children.forEach(child -> expand(child.productId(), quantity.multiply(child.quantity()), result, new HashSet<>(path)));
   }
 
-  private void validatePayments(List<CompleteSaleCommand.Payment> payments, BigDecimal total) {
+  /** Valida os pagamentos e devolve o valor destinado ao crediario (zero se nao houver). */
+  private BigDecimal validatePayments(List<CompleteSaleCommand.Payment> payments, BigDecimal total) {
     if (payments == null || payments.isEmpty()) throw new IllegalArgumentException("Informe o pagamento.");
     Map<UUID, PaymentMethod> methods = repository.listPaymentMethods().stream().collect(java.util.stream.Collectors.toMap(PaymentMethod::id, p -> p));
-    BigDecimal paid = BigDecimal.ZERO;
+    BigDecimal paid = BigDecimal.ZERO, creditAmount = BigDecimal.ZERO;
+    int creditLines = 0;
     for (CompleteSaleCommand.Payment payment : payments) {
       PaymentMethod method = methods.get(payment.paymentMethodId());
       if (method == null || payment.amount() == null || payment.amount().signum() <= 0) throw new IllegalArgumentException("Forma de pagamento invalida.");
       BigDecimal received = payment.receivedAmount() == null ? payment.amount() : payment.receivedAmount();
       if (received.compareTo(payment.amount()) < 0 || (!method.allowsChange() && received.compareTo(payment.amount()) != 0))
         throw new IllegalArgumentException("Valor recebido invalido.");
+      if (method.allowsCredit()) { creditLines++; creditAmount = creditAmount.add(payment.amount()); }
       paid = paid.add(payment.amount());
     }
+    if (creditLines > 1) throw new IllegalArgumentException("Use apenas uma linha de crediario por venda.");
     if (money(paid).compareTo(total) != 0) throw new IllegalArgumentException("O pagamento deve corresponder ao total da venda.");
+    return money(creditAmount);
   }
   private BigDecimal zero(BigDecimal value) { return value == null ? BigDecimal.ZERO : value; }
 

@@ -22,6 +22,7 @@ import type { RegisteredClient } from "@/src/domain/partners/registered-client"
 import type { SalesOrder } from "@/src/domain/sales/sales-document"
 import type { PaymentMethod, SaleReceipt } from "@/src/domain/sales/checkout"
 import { splitPayments, type PaymentLine } from "@/src/domain/sales/payment-split"
+import { CheckoutCreditPanel, defaultCreditPlan, type CreditPlanState } from "@/components/checkout-credit-panel"
 
 type Mode = "products" | "orders" | "sales"
 type CartItem = { productId: string; code: string; name: string; unit: string; quantity: number; price: number; discount: number; available: number | null }
@@ -40,6 +41,8 @@ export function WebCheckoutContent() {
   const [cart, setCart] = useState<CartItem[]>([]), [order, setOrder] = useState<SalesOrder | null>(null)
   const [clientId, setClientId] = useState("anonymous"), [generalDiscount, setGeneralDiscount] = useState(0)
   const [paymentLines, setPaymentLines] = useState<PaymentLine[]>([])
+  const [creditPlan, setCreditPlan] = useState<CreditPlanState>(defaultCreditPlan)
+  const [creditProblem, setCreditProblem] = useState<string | null>(null)
   const [loading, setLoading] = useState(true), [submitting, setSubmitting] = useState(false), [error, setError] = useState("")
   const [receipt, setReceipt] = useState<SaleReceipt | null>(null)
   const [cancelTarget, setCancelTarget] = useState<SaleReceipt | null>(null), [cancelReason, setCancelReason] = useState(""), [cancelling, setCancelling] = useState(false)
@@ -72,7 +75,7 @@ export function WebCheckoutContent() {
   useEffect(() => { const id = params.get("pedidoId"); if (!id || loading) return; fetch(`/api/sales/orders/${id}`, { cache: "no-store" }).then(check).then(r => r.json()).then(loadOrder).catch(e => setError(e.message)) }, [loading, params])
 
   // Qualquer alteracao na venda torna a proxima finalizacao uma nova tentativa
-  useEffect(() => { requestIdRef.current = null }, [cart, paymentLines, clientId, generalDiscount, order])
+  useEffect(() => { requestIdRef.current = null }, [cart, paymentLines, clientId, generalDiscount, order, creditPlan])
 
   const productResults = useMemo(() => { const term = query.trim().toLocaleLowerCase("pt-BR"); return !term ? [] : products.filter(p => `${p.name} ${p.internalCode} ${p.barcode ?? ""}`.toLocaleLowerCase("pt-BR").includes(term)).slice(0, 30) }, [query, products])
   const orderResults = useMemo(() => { const term = query.trim().toLocaleLowerCase("pt-BR"); return !term ? [] : orders.filter(o => canInvoice(o) && `${o.number} ${o.id} ${o.clientName} ${o.clientDocument ?? ""}`.toLocaleLowerCase("pt-BR").includes(term)).slice(0, 30) }, [query, orders])
@@ -82,6 +85,20 @@ export function WebCheckoutContent() {
   const total = round2(Math.max(0, subtotal - itemDiscount - generalDiscount + freight))
   const split = useMemo(() => splitPayments(paymentLines, methods, total), [paymentLines, methods, total])
   const stockProblem = cart.find(i => i.available !== null && i.quantity > i.available)
+  // Crediario: no maximo uma linha; o valor dela e o financiado
+  const creditMethodIds = new Set(methods.filter(m => m.allowsCredit).map(m => m.id))
+  const creditLine = paymentLines.find(l => creditMethodIds.has(l.methodId))
+  const creditLines = paymentLines.filter(l => creditMethodIds.has(l.methodId)).length
+  const creditBlock = creditLine ? (creditLines > 1 ? "Use apenas uma linha de crediario por venda." : !user ? "Faca login para vender no crediario." : creditProblem) : null
+  const onCreditStatus = useCallback((problem: string | null) => setCreditProblem(problem), [])
+  function applyDownPayment(amount: number, methodId: string) {
+    const creditId = creditLine?.methodId ?? methods.find(m => m.allowsCredit)?.id
+    if (!creditId) return
+    const lines: PaymentLine[] = []
+    if (amount > 0) lines.push({ key: newKey(), methodId, value: amount })
+    lines.push({ key: newKey(), methodId: creditId, value: round2(total - amount) })
+    setPaymentLines(lines)
+  }
 
   function addProduct(product: RegisteredProduct) {
     if (order) return
@@ -94,7 +111,7 @@ export function WebCheckoutContent() {
     setCart(value.items.map(i => ({ productId: i.productId, code: i.productCode, name: i.productName, unit: i.unitOfMeasure, quantity: i.quantity, price: i.unitPrice, discount: i.discount, available: null })))
     setPaymentLines([]); setMode("orders"); setQuery(""); setError("")
   }
-  function clear() { setOrder(null); setCart([]); setClientId("anonymous"); setGeneralDiscount(0); setPaymentLines([]); setError(""); setMode("products"); requestIdRef.current = null; searchRef.current?.focus() }
+  function clear() { setOrder(null); setCart([]); setClientId("anonymous"); setGeneralDiscount(0); setPaymentLines([]); setCreditPlan(defaultCreditPlan()); setError(""); setMode("products"); requestIdRef.current = null; searchRef.current?.focus() }
 
   function addPayment(methodId?: string) {
     const id = methodId ?? methods.find(m => !paymentLines.some(l => l.methodId === m.id))?.id ?? methods[0]?.id ?? ""
@@ -108,6 +125,7 @@ export function WebCheckoutContent() {
     if (!cart.length) return setError("Adicione ao menos um produto.")
     if (!split.canFinish) return setError(split.error ?? "Os pagamentos precisam cobrir exatamente o total da venda.")
     if (stockProblem) return setError(`Estoque insuficiente para ${stockProblem.name}.`)
+    if (creditBlock) return setError(creditBlock)
     submittingRef.current = true; setSubmitting(true); setError("")
     requestIdRef.current ??= newKey()
     try {
@@ -117,6 +135,7 @@ export function WebCheckoutContent() {
           salesOrderId: order?.id ?? null, clientId: clientId === "anonymous" ? null : clientId, generalDiscount, notes: order?.notes ?? "",
           items: cart.map(i => ({ productId: i.productId, quantity: i.quantity, discount: i.discount })),
           payments: split.payments, requestId: requestIdRef.current,
+          credit: creditLine ? { installments: creditPlan.installments, intervalType: creditPlan.intervalType, intervalDays: creditPlan.intervalType === "DAYS" ? creditPlan.intervalDays : null, firstDueDate: creditPlan.firstDueDate } : null,
         }),
       })
       const data = await response.json().catch(() => null)
@@ -128,7 +147,7 @@ export function WebCheckoutContent() {
       setReceipt(sale)
       toast({
         title: wasOrder ? `Pedido nº ${sale.salesOrderNumber} faturado com sucesso` : `Venda nº ${sale.number} finalizada com sucesso`,
-        description: `${wasOrder ? `Venda nº ${sale.number} · ` : ""}Total ${money.format(sale.total)} · estoque atualizado.`,
+        description: `${wasOrder ? `Venda nº ${sale.number} · ` : ""}Total ${money.format(sale.total)} · estoque atualizado.${sale.creditInstallments?.length ? ` Crediario: ${sale.creditInstallments.length} parcela(s), titulo nº ${sale.receivableNumber}.` : ""}`,
       })
       loadCatalog().catch(() => undefined)
       if (mode === "sales") loadSales().catch(() => undefined)
@@ -179,7 +198,7 @@ export function WebCheckoutContent() {
             {!cart.length ? <div className="flex h-60 flex-col items-center justify-center text-muted-foreground"><ShoppingCart className="mb-3 size-9" /><p className="font-medium text-foreground">Carrinho vazio</p><p className="text-sm">Pesquise e adicione um produto.</p></div> : <div className="divide-y">{cart.map(item => <div key={item.productId} className="grid gap-3 p-4 sm:grid-cols-[1fr_100px_110px_110px_auto] sm:items-center"><div><div className="flex flex-wrap items-center gap-2"><p className="font-medium">{item.name}</p><Badge variant="secondary">{item.code}</Badge></div><p className="text-xs text-muted-foreground">{item.unit} · {money.format(item.price)} por unidade{item.available !== null ? ` · disponivel ${item.available}` : ""}</p>{item.available !== null && item.quantity > item.available && <p className="text-xs font-medium text-destructive">Quantidade acima do estoque disponivel</p>}</div><div><Label className="text-xs">Quantidade</Label><Input type="number" min="0.0001" step="0.0001" value={item.quantity} disabled={!!order} onChange={e => setCart(c => c.map(i => i.productId === item.productId ? { ...i, quantity: Math.max(.0001, Number(e.target.value)) } : i))} /></div><div><Label className="text-xs">Desconto</Label><Input type="number" min="0" max={item.quantity * item.price} step="0.01" value={item.discount} disabled={!!order} onChange={e => setCart(c => c.map(i => i.productId === item.productId ? { ...i, discount: Math.min(i.quantity * i.price, Math.max(0, Number(e.target.value))) } : i))} /></div><div className="text-right"><p className="text-xs text-muted-foreground">Subtotal</p><p className="font-semibold">{money.format(item.quantity * item.price - item.discount)}</p>{item.discount > 0 && <p className="text-xs text-muted-foreground">Desconto {money.format(item.discount)}</p>}</div><Button variant="ghost" size="icon" aria-label={`Remover ${item.name}`} disabled={!!order} onClick={() => setCart(c => c.filter(i => i.productId !== item.productId))}><Trash2 className="size-4 text-destructive" /></Button></div>)}</div>}
           </CardContent></Card>
 
-        <Card><CardHeader className="pb-3"><div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="flex items-center gap-2 text-base"><Wallet className="size-4" />Pagamento</CardTitle><div className="flex flex-wrap gap-1.5">{methods.map(m => <Button key={m.id} type="button" size="sm" variant="outline" disabled={!cart.length || submitting || split.remaining <= 0} onClick={() => addPayment(m.id)}>{m.name}</Button>)}</div></div></CardHeader>
+        <Card><CardHeader className="pb-3"><div className="flex flex-wrap items-center justify-between gap-2"><CardTitle className="flex items-center gap-2 text-base"><Wallet className="size-4" />Pagamento</CardTitle><div className="flex flex-wrap gap-1.5">{methods.map(m => <Button key={m.id} type="button" size="sm" variant={m.allowsCredit ? "secondary" : "outline"} disabled={!cart.length || submitting || split.remaining <= 0 || (m.allowsCredit && Boolean(creditLine))} onClick={() => addPayment(m.id)}>{m.name}</Button>)}</div></div></CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-[1fr_auto]">
             <div className="space-y-2">
               {paymentLines.length === 0 ? <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">Nenhuma forma de pagamento adicionada. Use os botoes acima ou &quot;Adicionar forma de pagamento&quot; — o valor restante e preenchido automaticamente.</p> : paymentLines.map((line, index) => {
@@ -188,6 +207,7 @@ export function WebCheckoutContent() {
               })}
               <Button type="button" variant="secondary" size="sm" onClick={() => addPayment()} disabled={!cart.length || submitting || !methods.length}><Plus className="size-4" />Adicionar forma de pagamento</Button>
               {split.error && <p className="text-sm text-destructive">{split.error}</p>}
+              {creditLine && <CheckoutCreditPanel clientId={clientId === "anonymous" ? null : clientId} financed={creditLine.value || 0} total={total} plan={creditPlan} onPlanChange={setCreditPlan} methods={methods} onApplyDownPayment={applyDownPayment} onStatusChange={onCreditStatus} disabled={submitting} />}
             </div>
             <div className="min-w-60 space-y-1 rounded-lg bg-muted/50 p-3 text-sm">
               <Line label="Subtotal" value={money.format(subtotal)} />
@@ -197,7 +217,7 @@ export function WebCheckoutContent() {
               <Line label="Total pago" value={money.format(split.paid)} />
               <Line label="Restante" value={money.format(split.remaining)} strong={split.remaining > 0} tone={split.remaining > 0 ? "text-destructive" : "text-emerald-600"} />
               {split.change > 0 && <Line label="Troco" value={money.format(split.change)} strong tone="text-emerald-600" />}
-              <Button size="lg" className="mt-2 w-full" disabled={!cart.length || submitting || !split.canFinish || Boolean(stockProblem)} onClick={complete}>{submitting ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}{submitting ? "Finalizando..." : order ? "Faturar pedido" : "Finalizar venda"}</Button>
+              <Button size="lg" className="mt-2 w-full" disabled={!cart.length || submitting || !split.canFinish || Boolean(stockProblem) || Boolean(creditBlock)} onClick={complete}>{submitting ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}{submitting ? "Finalizando..." : order ? "Faturar pedido" : "Finalizar venda"}</Button>
             </div>
           </CardContent></Card>
       </div>

@@ -243,7 +243,13 @@ public class PostgresSalesDocumentRepositoryAdapter implements SalesDocumentRepo
         rs.getString("created_by"), rs.getString("status"), rs.getBigDecimal("subtotal"), rs.getBigDecimal("item_discount"),
         rs.getBigDecimal("general_discount"), rs.getBigDecimal("freight"), rs.getBigDecimal("total"), received, change,
         items, payments, rs.getObject("created_at", OffsetDateTime.class), rs.getObject("cancelled_at", OffsetDateTime.class),
-        rs.getString("cancelled_by"), rs.getString("cancel_reason"));
+        rs.getString("cancelled_by"), rs.getString("cancel_reason"),
+        jdbc.query("SELECT number FROM receivables WHERE sale_id=?", (r, row) -> r.getLong(1), id).stream().findFirst().orElse(null),
+        jdbc.query("""
+            SELECT i.installment_number, i.due_date, i.amount, i.status FROM receivable_installments i
+            JOIN receivables r ON r.id = i.receivable_id WHERE r.sale_id=? ORDER BY i.installment_number
+            """, (r, row) -> new SaleReceipt.CreditInstallment(r.getInt(1), r.getObject(2, java.time.LocalDate.class),
+            r.getBigDecimal(3), r.getString(4)), id));
   }
 
   private Sale sale(ResultSet rs) throws SQLException {

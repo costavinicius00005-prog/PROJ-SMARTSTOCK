@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import type { RegisteredClient } from "@/src/domain/partners/registered-client"
+import { ClientCreditStatement } from "@/components/receivables/client-credit-statement"
 
 type HistoryKind = "VENDA" | "PEDIDO" | "ORCAMENTO"
 
@@ -187,6 +188,8 @@ export function ClientDetailsContent({ clientId }: { clientId: string }) {
           </dl>
         </CardContent>
       </Card>
+
+      <ClientCreditStatement clientId={client.id} />
 
       <Card id="historico" className="scroll-mt-4">
         <CardHeader>
