@@ -44,7 +44,8 @@ export function RelatoriosContent() {
     try {
       const [p, f, d, o, q] = await Promise.all([
         fetch("/api/products", { cache: "no-store" }).then((r) => r.json()),
-        fetch("/api/finance/summary", { cache: "no-store" }).then((r) => r.json()),
+        // Resumo financeiro so para ADMIN/FINANCEIRO; para os demais papeis a secao fica oculta
+        fetch("/api/finance/summary", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)),
         fetch("/api/system/dashboard", { cache: "no-store" }).then((r) => r.json()),
         fetch("/api/sales/orders", { cache: "no-store" }).then((r) => r.json()),
         fetch("/api/sales/quotes", { cache: "no-store" }).then((r) => r.json()),

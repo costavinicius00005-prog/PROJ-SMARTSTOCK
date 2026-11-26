@@ -20,6 +20,15 @@ class ApiDeliveryRepository extends DeliveryRepository {
   static const _requestTimeout = Duration(seconds: 15);
   String? _currentEmail;
 
+  /// Token de sessao devolvido pelo login; a API exige-o em todas as rotas
+  /// (exceto o proprio login) no cabecalho Authorization.
+  String? _token;
+
+  Map<String, String> _headers({bool json = false}) => {
+    if (json) 'Content-Type': 'application/json',
+    if (_token != null) 'Authorization': 'Bearer $_token',
+  };
+
   @override
   Future<void> initialize() async {}
 
@@ -35,6 +44,7 @@ class ApiDeliveryRepository extends DeliveryRepository {
         .timeout(_requestTimeout);
     _ensureSuccess(response, 'Não foi possível entrar.');
     final json = jsonDecode(response.body) as Map<String, dynamic>;
+    _token = json['token'] as String?;
     return AppUser(
       id: json['email'] as String,
       name: json['userName'] as String? ?? 'Entregador SmartStock',
@@ -128,7 +138,7 @@ class ApiDeliveryRepository extends DeliveryRepository {
     final response = await _client
         .put(
           Uri.parse('$_baseUrl/deliveries/${delivery.id}/status'),
-          headers: const {'Content-Type': 'application/json'},
+          headers: _headers(json: true),
           body: jsonEncode({
             'status': _statusToApi(delivery.status),
             'receiverName': delivery.receiverName,
@@ -152,7 +162,7 @@ class ApiDeliveryRepository extends DeliveryRepository {
       final response = await _client
           .post(
             Uri.parse('$_baseUrl/deliveries/$deliveryId/locations'),
-            headers: const {'Content-Type': 'application/json'},
+            headers: _headers(json: true),
             body: jsonEncode({
               'latitude': latitude,
               'longitude': longitude,
@@ -172,7 +182,7 @@ class ApiDeliveryRepository extends DeliveryRepository {
 
   Future<List<Map<String, dynamic>>> _getList(String path) async {
     final response = await _client
-        .get(Uri.parse('$_baseUrl$path'))
+        .get(Uri.parse('$_baseUrl$path'), headers: _headers())
         .timeout(_requestTimeout);
     _ensureSuccess(response, 'Não foi possível carregar $path.');
     return (jsonDecode(response.body) as List<dynamic>)

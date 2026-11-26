@@ -15,6 +15,7 @@ public class CreateSupplierUseCase {
     String cpf = ClientInputSanitizer.documentToNull(command.cpf());
     String cnpj = ClientInputSanitizer.documentToNull(command.cnpj());
     if (name == null) throw new IllegalArgumentException("Nome do fornecedor e obrigatorio.");
+    DocumentRules.validate(cpf, cnpj, null, null);
     if (cpf != null && repository.existsByCpf(cpf)) throw new SupplierAlreadyExistsException("Ja existe um fornecedor cadastrado com este CPF.");
     if (cnpj != null && repository.existsByCnpj(cnpj)) throw new SupplierAlreadyExistsException("Ja existe um fornecedor cadastrado com este CNPJ.");
     return repository.save(new Supplier(UUID.randomUUID(), resolveType(command.supplierType()), cpf, cnpj,

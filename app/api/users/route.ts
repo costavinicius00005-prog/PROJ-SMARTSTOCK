@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server"
+import { backendFetch } from "@/lib/server-auth"
 
 const apiBaseUrl = process.env.API_INTERNAL_URL ?? "http://localhost:8080"
 
 async function forward(request: Request, init: RequestInit = {}) {
   const authorization = request.headers.get("authorization")
-  const response = await fetch(`${apiBaseUrl}/api/users`, {
+  const response = await backendFetch(request, `${apiBaseUrl}/api/users`, {
     cache: "no-store",
     headers: {
       "Content-Type": "application/json",

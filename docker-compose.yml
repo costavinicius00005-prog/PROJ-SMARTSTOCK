@@ -18,8 +18,11 @@ services:
   api:
     build: ./backend
     container_name: meu-sistema-api
+    # Publicada so no proprio computador (127.0.0.1). O ERP web chega a API pela rede interna do
+    # Docker; o app do entregador chega pelo tunel (ngrok/cloudflared rodando nesta maquina).
+    # Para testar o app pela rede local sem tunel, use API_BIND=0.0.0.0 no .env.
     ports:
-      - "8080:8080"
+      - "${API_BIND:-127.0.0.1}:8080:8080"
     depends_on:
       db:
         condition: service_healthy
@@ -30,8 +33,9 @@ services:
   db:
     image: postgres:16
     container_name: meu-sistema-postgres
+    # Banco acessivel apenas do proprio computador (ferramentas como DBeaver/pgAdmin continuam funcionando)
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}

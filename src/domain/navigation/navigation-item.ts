@@ -15,6 +15,8 @@ export type NavigationIconKey =
 export interface NavigationChild {
   title: string
   href: string
+  /** Papeis que veem o item; ausente = todos. O servidor aplica a mesma regra nas rotas. */
+  roles?: string[]
 }
 
 export interface NavigationItem {
@@ -22,5 +24,7 @@ export interface NavigationItem {
   icon: NavigationIconKey
   href?: string
   badge?: string
+  /** Papeis que veem o item; ausente = todos. */
+  roles?: string[]
   children?: NavigationChild[]
 }

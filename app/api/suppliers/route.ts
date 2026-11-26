@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
+import { backendFetch } from "@/lib/server-auth"
 
 const apiBaseUrl = process.env.API_INTERNAL_URL ?? "http://localhost:8080"
 
-export async function GET() {
-  const response = await fetch(`${apiBaseUrl}/api/suppliers`, { cache: "no-store" })
+export async function GET(request: Request) {
+  const response = await backendFetch(request, `${apiBaseUrl}/api/suppliers`, { cache: "no-store" })
   if (!response.ok) {
     return NextResponse.json({ message: "Nao foi possivel listar os fornecedores." }, { status: response.status })
   }
@@ -11,7 +12,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const response = await fetch(`${apiBaseUrl}/api/suppliers`, {
+  const response = await backendFetch(request, `${apiBaseUrl}/api/suppliers`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: await request.text(),

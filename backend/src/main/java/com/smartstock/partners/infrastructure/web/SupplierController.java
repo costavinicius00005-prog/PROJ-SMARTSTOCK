@@ -51,7 +51,7 @@ public class SupplierController {
         r.addressNumber(), r.complement(), r.district(), r.state(), r.city());
   }
 
-  @GetMapping public List<SupplierResponse> list() { return listSuppliers.execute().stream().map(SupplierResponse::from).toList(); }
+  @GetMapping public List<SupplierResponse> list() { return listSuppliers.execute().stream().map(SupplierResponse::forListing).toList(); }
   @PostMapping @ResponseStatus(HttpStatus.CREATED)
   public SupplierResponse create(@RequestBody SupplierRequest r) {
     return SupplierResponse.from(createSupplier.execute(new CreateSupplierCommand(r.clientType(), r.cpf(), r.cnpj(),
@@ -80,5 +80,11 @@ public class SupplierController {
         s.cnpj(), s.name(), s.tradeName(), s.email(), s.primaryPhone(), s.birthDate(), s.rg(), s.gender(),
         s.motherName(), s.fatherName(), s.primaryContactName(), s.zipCode(), s.address(), s.addressNumber(),
         s.complement(), s.district(), s.state(), s.city()); }
+
+    /** Listagem: CPF mascarado e sem RG, nascimento, genero e filiacao (fornecedor pessoa fisica). */
+    static SupplierResponse forListing(Supplier s) { return new SupplierResponse(s.id(), s.supplierType(),
+        PersonalDataMask.cpf(s.cpf()), s.cnpj(), s.name(), s.tradeName(), s.email(), s.primaryPhone(), null, null,
+        null, null, null, s.primaryContactName(), s.zipCode(), s.address(), s.addressNumber(), s.complement(),
+        s.district(), s.state(), s.city()); }
   }
 }

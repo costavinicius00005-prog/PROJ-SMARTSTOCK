@@ -1,11 +1,12 @@
 import type { NavigationItem } from "@/src/domain/navigation/navigation-item"
 
+const FINANCE_ROLES = ["ADMIN", "FINANCEIRO"]
+
 export const navigationMenu: NavigationItem[] = [
   { title: "Visao Geral", icon: "layout-dashboard", href: "/" },
   {
     title: "Cadastros",
     icon: "users",
-    badge: "Novo",
     children: [
       { title: "Produtos", href: "/cadastros/produtos" },
       { title: "Clientes", href: "/cadastros/clientes" },
@@ -30,14 +31,13 @@ export const navigationMenu: NavigationItem[] = [
       { title: "Locais de Estoque", href: "/estoque/locais" },
     ],
   },
-  { title: "Relatorios", icon: "bar-chart-3", badge: "Novo", href: "/relatorios" },
+  { title: "Relatorios", icon: "bar-chart-3", href: "/relatorios" },
   {
     title: "Financeiro",
     icon: "wallet",
-    badge: "Novo",
     children: [
-      { title: "Contas a Pagar", href: "/financeiro/contas-pagar" },
-      { title: "Contas a Receber", href: "/financeiro/contas-receber" },
+      { title: "Contas a Pagar", href: "/financeiro/contas-pagar", roles: FINANCE_ROLES },
+      { title: "Contas a Receber", href: "/financeiro/contas-receber", roles: FINANCE_ROLES },
       { title: "Crediario", href: "/financeiro/crediario" },
       { title: "Relatorios de Crediario", href: "/financeiro/crediario/relatorios" },
       { title: "Boletos", href: "/financeiro/boletos" },
@@ -52,6 +52,6 @@ export const navigationMenu: NavigationItem[] = [
       { title: "Notas Fiscais", href: "/fiscal/notas" },
     ],
   },
-  { title: "Contabilidade", icon: "building-2", href: "/contabilidade" },
-  { title: "Configuracoes", icon: "settings", href: "/configuracoes" },
+  { title: "Contabilidade", icon: "building-2", href: "/contabilidade", roles: FINANCE_ROLES },
+  { title: "Configuracoes", icon: "settings", href: "/configuracoes", roles: ["ADMIN"] },
 ]

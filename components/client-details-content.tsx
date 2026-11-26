@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table"
 import type { RegisteredClient } from "@/src/domain/partners/registered-client"
 import { ClientCreditStatement } from "@/components/receivables/client-credit-statement"
+import { ClientPrivacyCard } from "@/components/privacy/client-privacy-card"
 
 type HistoryKind = "VENDA" | "PEDIDO" | "ORCAMENTO"
 
@@ -60,6 +61,7 @@ export function ClientDetailsContent({ clientId }: { clientId: string }) {
   const [client, setClient] = useState<RegisteredClient | null>(null)
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading")
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     const load = async () => {
@@ -79,7 +81,7 @@ export function ClientDetailsContent({ clientId }: { clientId: string }) {
     }
 
     load()
-  }, [clientId])
+  }, [clientId, reloadKey])
 
   // So vendas efetivadas contam como compra: um pedido atendido vira uma venda, entao somar
   // pedidos e vendas contaria a mesma compra duas vezes. Orcamentos nunca contam.
@@ -239,6 +241,8 @@ export function ClientDetailsContent({ clientId }: { clientId: string }) {
           </Table>
         </CardContent>
       </Card>
+
+      <ClientPrivacyCard clientId={client.id} onChanged={() => setReloadKey((key) => key + 1)} />
     </div>
   )
 }

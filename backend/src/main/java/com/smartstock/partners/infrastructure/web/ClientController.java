@@ -11,6 +11,7 @@ import com.smartstock.partners.application.usecase.UpdateClientUseCase;
 import com.smartstock.partners.infrastructure.persistence.ClientPurchaseHistoryQuery;
 import com.smartstock.partners.application.usecase.ListClientsUseCase;
 import com.smartstock.partners.domain.Client;
+import com.smartstock.privacy.ClientPrivacyService;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -37,6 +38,7 @@ public class ClientController {
   private final GetClientUseCase getClientUseCase;
   private final UpdateClientUseCase updateClientUseCase;
   private final ClientPurchaseHistoryQuery purchaseHistoryQuery;
+  private final ClientPrivacyService privacyService;
 
   public ClientController(
       CreateClientUseCase createClientUseCase,
@@ -44,13 +46,15 @@ public class ClientController {
       DeleteClientUseCase deleteClientUseCase,
       GetClientUseCase getClientUseCase,
       UpdateClientUseCase updateClientUseCase,
-      ClientPurchaseHistoryQuery purchaseHistoryQuery) {
+      ClientPurchaseHistoryQuery purchaseHistoryQuery,
+      ClientPrivacyService privacyService) {
     this.createClientUseCase = createClientUseCase;
     this.listClientsUseCase = listClientsUseCase;
     this.deleteClientUseCase = deleteClientUseCase;
     this.getClientUseCase = getClientUseCase;
     this.updateClientUseCase = updateClientUseCase;
     this.purchaseHistoryQuery = purchaseHistoryQuery;
+    this.privacyService = privacyService;
   }
 
   @GetMapping("/{clientId}")
@@ -60,6 +64,7 @@ public class ClientController {
 
   @PutMapping("/{clientId}")
   public ClientResponse update(@PathVariable UUID clientId, @RequestBody CreateClientRequest request) {
+    privacyService.ensureEditable(clientId);
     return ClientResponse.fromDomain(updateClientUseCase.execute(clientId, toCommand(request)));
   }
 
@@ -82,7 +87,7 @@ public class ClientController {
   @GetMapping
   public List<ClientResponse> list() {
     return listClientsUseCase.execute().stream()
-        .map(ClientResponse::fromDomain)
+        .map(ClientResponse::forListing)
         .toList();
   }
 

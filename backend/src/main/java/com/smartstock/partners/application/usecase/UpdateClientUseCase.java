@@ -17,7 +17,7 @@ public class UpdateClientUseCase {
 
   @Transactional
   public Client execute(UUID clientId, CreateClientCommand command) {
-    clientRepository.findById(clientId).orElseThrow(ClientNotFoundException::new);
+    var previous = clientRepository.findById(clientId).orElseThrow(ClientNotFoundException::new);
 
     String name = ClientInputSanitizer.blankToNull(command.name());
     String cpf = ClientInputSanitizer.documentToNull(command.cpf());
@@ -26,6 +26,7 @@ public class UpdateClientUseCase {
     if (name == null) {
       throw new IllegalArgumentException("Nome do cliente e obrigatorio.");
     }
+    DocumentRules.validate(cpf, cnpj, previous.cpf(), previous.cnpj());
     if (cpf != null && clientRepository.existsByCpfForOtherClient(cpf, clientId)) {
       throw new ClientAlreadyExistsException("Ja existe outro cliente cadastrado com este CPF.");
     }

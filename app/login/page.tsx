@@ -56,7 +56,7 @@ export default function LoginPage() {
                 id="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin"
+                placeholder="usuario"
                 autoComplete="username"
                 required
                 className="border-slate-700 bg-slate-950 text-white placeholder:text-slate-600"
@@ -89,6 +89,9 @@ export default function LoginPage() {
             </Button>
           </div>
         </form>
+        <p className="mt-4 text-center text-xs text-slate-500">
+          <a href="/privacidade" className="hover:text-slate-300 hover:underline">Politica de Privacidade</a>
+        </p>
       </div>
     </div>
   )

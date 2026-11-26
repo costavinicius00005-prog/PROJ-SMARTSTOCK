@@ -16,7 +16,7 @@ public class UpdateSupplierUseCase {
 
   @Transactional
   public Supplier execute(UUID id, CreateSupplierCommand command) {
-    repository.findById(id).orElseThrow(SupplierNotFoundException::new);
+    var previous = repository.findById(id).orElseThrow(SupplierNotFoundException::new);
 
     String name = clean(command.name());
     String cpf = ClientInputSanitizer.documentToNull(command.cpf());
@@ -24,6 +24,7 @@ public class UpdateSupplierUseCase {
     if (name == null) {
       throw new IllegalArgumentException("Nome do fornecedor e obrigatorio.");
     }
+    DocumentRules.validate(cpf, cnpj, previous.cpf(), previous.cnpj());
     if (cpf != null && repository.existsByCpfForOtherSupplier(cpf, id)) {
       throw new SupplierAlreadyExistsException("Ja existe outro fornecedor cadastrado com este CPF.");
     }

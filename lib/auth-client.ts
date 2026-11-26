@@ -7,26 +7,28 @@ export type SessionUser = {
   createdAt?: string
 }
 
-const TOKEN_COOKIE = "smartstock_token"
+/**
+ * O token de sessao fica somente no cookie HttpOnly gravado pelo servidor (Next): o JavaScript da
+ * pagina nao le, nao grava e nao envia o token. O navegador manda o cookie sozinho nas chamadas
+ * para /api. No localStorage fica apenas o perfil exibido na tela (nome e papel), sem segredo.
+ */
 const USER_STORAGE = "smartstock_user"
-
-export function getToken(): string | null {
-  if (typeof document === "undefined") return null
-  const match = document.cookie.match(new RegExp(`(?:^|; )${TOKEN_COOKIE}=([^;]*)`))
-  return match ? decodeURIComponent(match[1]) : null
-}
-
-export function setToken(token: string) {
-  document.cookie = `${TOKEN_COOKIE}=${encodeURIComponent(token)}; path=/; max-age=86400; SameSite=Lax`
-}
+const LEGACY_TOKEN_COOKIE = "smartstock_token"
 
 export function clearSession() {
-  document.cookie = `${TOKEN_COOKIE}=; path=/; max-age=0; SameSite=Lax`
-  localStorage.removeItem(USER_STORAGE)
+  try {
+    localStorage.removeItem(USER_STORAGE)
+  } catch {
+    /* armazenamento indisponivel */
+  }
 }
 
 export function storeUser(user: SessionUser) {
-  localStorage.setItem(USER_STORAGE, JSON.stringify(user))
+  try {
+    localStorage.setItem(USER_STORAGE, JSON.stringify(user))
+  } catch {
+    /* armazenamento indisponivel */
+  }
 }
 
 export function readStoredUser(): SessionUser | null {
@@ -39,13 +41,17 @@ export function readStoredUser(): SessionUser | null {
   }
 }
 
+/** Remove o cookie antigo (nao HttpOnly) das versoes anteriores, se ainda existir no navegador. */
+export function dropLegacyTokenCookie() {
+  if (typeof document === "undefined") return
+  document.cookie = `${LEGACY_TOKEN_COOKIE}=; path=/; max-age=0; SameSite=Lax`
+}
+
 export async function apiFetch(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers)
   headers.set("Content-Type", "application/json")
-  const token = getToken()
-  if (token) headers.set("Authorization", `Bearer ${token}`)
 
-  const response = await fetch(path, { ...init, headers })
+  const response = await fetch(path, { ...init, headers, credentials: "same-origin" })
 
   let data: unknown = null
   const text = await response.text()
@@ -71,10 +77,10 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
 export async function login(username: string, password: string): Promise<SessionUser> {
   const data = (await apiFetch("/api/auth/login", {
     method: "POST",
+    headers: { "X-SmartStock-Client": "web" },
     body: JSON.stringify({ username, password }),
-  })) as { token: string; id: number; email: string; userName: string; role: string; active: boolean }
+  })) as { id: number; email: string; userName: string; role: string; active: boolean }
 
-  setToken(data.token)
   const user: SessionUser = {
     id: data.id,
     username: data.email,
@@ -86,6 +92,18 @@ export async function login(username: string, password: string): Promise<Session
   return user
 }
 
+export async function logoutRequest() {
+  await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }).catch(() => undefined)
+  clearSession()
+}
+
 export async function fetchMe(): Promise<SessionUser> {
   return (await apiFetch("/api/auth/me")) as SessionUser
+}
+
+export async function changePassword(currentPassword: string, newPassword: string) {
+  return (await apiFetch("/api/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  })) as { ok: boolean; otherSessionsRevoked: number }
 }

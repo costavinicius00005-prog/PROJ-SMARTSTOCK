@@ -94,7 +94,7 @@ export default function AdminPage() {
   }
 
   async function resetPassword(target: SessionUser) {
-    const next = window.prompt(`Nova senha para ${target.displayName} (minimo 6 caracteres):`)
+    const next = window.prompt(`Nova senha para ${target.displayName} (minimo 8 caracteres, com letras e numeros):`)
     if (!next) return
     setFeedback(null)
     try {
@@ -105,6 +105,19 @@ export default function AdminPage() {
       setFeedback({ type: "ok", text: "Senha redefinida." })
     } catch (err) {
       setFeedback({ type: "error", text: err instanceof Error ? err.message : "Falha ao redefinir senha." })
+    }
+  }
+
+  async function endSessions(target: SessionUser) {
+    if (!window.confirm(`Encerrar todas as sessoes de ${target.displayName}? A pessoa precisara entrar de novo.`)) return
+    setFeedback(null)
+    try {
+      const result = (await apiFetch(`/api/security/users/${target.id}/sessions`, { method: "DELETE" })) as {
+        revoked: number
+      }
+      setFeedback({ type: "ok", text: `${result.revoked} sessao(oes) encerrada(s).` })
+    } catch (err) {
+      setFeedback({ type: "error", text: err instanceof Error ? err.message : "Falha ao encerrar sessoes." })
     }
   }
 
@@ -173,8 +186,8 @@ export default function AdminPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="minimo 6 caracteres"
-                minLength={6}
+                placeholder="8+ caracteres, letras e numeros"
+                minLength={8}
                 required
               />
             </div>
@@ -268,6 +281,9 @@ export default function AdminPage() {
                           disabled={u.username === "admin"}
                         >
                           Redefinir senha
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => endSessions(u)}>
+                          Encerrar sessoes
                         </Button>
                       </div>
                     </td>

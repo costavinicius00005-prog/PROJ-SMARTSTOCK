@@ -1,5 +1,6 @@
 package com.smartstock.delivery.infrastructure.web;
 
+import com.smartstock.iam.infrastructure.security.CurrentUserProvider;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -23,9 +24,11 @@ public class DeliveryController {
       Set.of("Pendente", "Em rota", "Entregue", "Cancelada");
 
   private final JdbcTemplate jdbc;
+  private final CurrentUserProvider currentUser;
 
-  public DeliveryController(JdbcTemplate jdbc) {
+  public DeliveryController(JdbcTemplate jdbc, CurrentUserProvider currentUser) {
     this.jdbc = jdbc;
+    this.currentUser = currentUser;
   }
 
   @GetMapping("/deliveries")
@@ -249,10 +252,25 @@ public class DeliveryController {
         || Math.abs(request.latitude()) > 90 || Math.abs(request.longitude()) > 180) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Coordenadas invalidas.");
     }
-    Integer exists = jdbc.queryForObject(
-        "SELECT 1 FROM deliveries WHERE id = ?", Integer.class, deliveryId);
-    if (exists == null) {
+    // So registra posicao de entrega em andamento e do proprio entregador (ou ainda sem entregador):
+    // ninguem consegue gravar rastro em nome de outra pessoa nem depois que a entrega terminou.
+    var delivery = jdbc.query(
+        "SELECT status, assignee_id FROM deliveries WHERE id = ?",
+        (rs, i) -> new Object[] {rs.getString("status"), rs.getObject("assignee_id", Long.class)},
+        deliveryId);
+    if (delivery.isEmpty()) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Entrega nao encontrada.");
+    }
+    String status = (String) delivery.get(0)[0];
+    Long assigneeId = (Long) delivery.get(0)[1];
+    if ("Entregue".equals(status) || "Cancelada".equals(status)) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT,
+          "Entrega encerrada: a localizacao nao e mais coletada.");
+    }
+    Long currentUserId = currentUser.currentUserId();
+    if (assigneeId != null && !assigneeId.equals(currentUserId)) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+          "Somente o entregador designado pode enviar a localizacao desta entrega.");
     }
     if (request.recordedAt() != null) {
       jdbc.update("""

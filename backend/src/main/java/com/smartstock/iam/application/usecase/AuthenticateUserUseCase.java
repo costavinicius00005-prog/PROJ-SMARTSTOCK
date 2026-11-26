@@ -9,6 +9,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class AuthenticateUserUseCase {
 
+  /** Hash BCrypt (custo 10) de um valor aleatorio, usado so para igualar o tempo de resposta. */
+  private static final String DUMMY_HASH = "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5BWXo4jY0dX9Gk1y3c2l3OZsZ5y2G";
+
   private final UserRepositoryPort userRepository;
   private final PasswordEncoderPort passwordEncoder;
 
@@ -22,9 +25,13 @@ public class AuthenticateUserUseCase {
       throw new InvalidCredentialsException();
     }
 
-    User user = userRepository
-        .findByUsername(identifier.trim().toLowerCase(Locale.ROOT))
-        .orElseThrow(InvalidCredentialsException::new);
+    var found = userRepository.findByUsername(identifier.trim().toLowerCase(Locale.ROOT));
+    if (found.isEmpty()) {
+      // Mesmo custo de uma senha errada: o tempo de resposta nao revela se o usuario existe
+      passwordEncoder.matches(rawPassword, DUMMY_HASH);
+      throw new InvalidCredentialsException();
+    }
+    User user = found.get();
 
     if (!passwordEncoder.matches(rawPassword, user.passwordHash())) {
       throw new InvalidCredentialsException();

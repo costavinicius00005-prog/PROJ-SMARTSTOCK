@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { backendFetch } from "@/lib/server-auth"
 
 const apiBaseUrl = process.env.API_INTERNAL_URL ?? "http://localhost:8080"
 
@@ -6,7 +7,7 @@ async function forward(request: Request, init: RequestInit = {}) {
   const url = new URL(request.url)
   const type = url.searchParams.get("type")
   const query = type ? `?type=${encodeURIComponent(type)}` : ""
-  const response = await fetch(`${apiBaseUrl}/api/finance/accounts${query}`, {
+  const response = await backendFetch(request, `${apiBaseUrl}/api/finance/accounts${query}`, {
     cache: "no-store",
     headers: { "Content-Type": "application/json" },
     ...init,

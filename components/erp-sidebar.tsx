@@ -57,12 +57,18 @@ const navigationIcons: Record<NavigationIconKey, React.ComponentType<{ className
 export function ErpSidebar() {
   const pathname = usePathname()
   const { user } = useAuth()
-  const menuItems = appUseCases.listNavigationMenu()
+  const role = user?.role ?? ""
+  const allowed = (roles?: string[]) => !roles || roles.includes(role)
+  const menuItems = appUseCases
+    .listNavigationMenu()
+    .filter((item) => allowed(item.roles))
+    .map((item) => (item.children ? { ...item, children: item.children.filter((c) => allowed(c.roles)) } : item))
   const isAdmin = user?.role === "ADMIN"
 
   const adminLinks = [
     { href: "/admin", title: "Usuarios e Permissoes", icon: ShieldCheck },
     { href: "/admin/integracao", title: "Integracao e Banco", icon: Database },
+    { href: "/admin/seguranca", title: "Seguranca e LGPD", icon: ShieldCheck },
   ]
 
   return (

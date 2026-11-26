@@ -19,3 +19,7 @@ aplicativo-smartstock/build/
 aplicativo-smartstock/.flutter-plugins
 aplicativo-smartstock/.flutter-plugins-dependencies
 .packages
+
+# Saida de build do backend (Maven)
+backend/target/
+!.env.example

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { backendFetch } from "@/lib/server-auth"
 
 const apiBaseUrl = process.env.API_INTERNAL_URL ?? "http://localhost:8080"
 
@@ -10,15 +11,11 @@ const backendPath: Record<CatalogResource, string> = {
   "units-of-measure": "/api/units-of-measure",
 }
 
-export async function proxyCatalogResource(resource: CatalogResource, request?: Request) {
-  const response = await fetch(`${apiBaseUrl}${backendPath[resource]}`, {
-    method: request ? "POST" : "GET",
-    headers: request
-      ? {
-          "Content-Type": "application/json",
-        }
-      : undefined,
-    body: request ? await request.text() : undefined,
+export async function proxyCatalogResource(resource: CatalogResource, request: Request, create = false) {
+  const response = await backendFetch(request, `${apiBaseUrl}${backendPath[resource]}`, {
+    method: create ? "POST" : "GET",
+    headers: create ? { "Content-Type": "application/json" } : undefined,
+    body: create ? await request.text() : undefined,
     cache: "no-store",
   })
 
@@ -29,5 +26,5 @@ export async function proxyCatalogResource(resource: CatalogResource, request?: 
     )
   }
 
-  return NextResponse.json(await response.json(), { status: request ? 201 : 200 })
+  return NextResponse.json(await response.json(), { status: create ? 201 : 200 })
 }

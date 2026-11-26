@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
+import { backendFetch } from "@/lib/server-auth"
 
 const apiBaseUrl = process.env.API_INTERNAL_URL ?? "http://localhost:8080"
 
-export async function GET() {
-  const response = await fetch(`${apiBaseUrl}/api/clients`, {
+export async function GET(request: Request) {
+  const response = await backendFetch(request, `${apiBaseUrl}/api/clients`, {
     cache: "no-store",
   })
 
@@ -22,7 +23,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const body = await request.text()
 
-  const response = await fetch(`${apiBaseUrl}/api/clients`, {
+  const response = await backendFetch(request, `${apiBaseUrl}/api/clients`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

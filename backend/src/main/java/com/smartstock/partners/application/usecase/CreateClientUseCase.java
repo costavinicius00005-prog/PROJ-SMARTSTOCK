@@ -23,6 +23,8 @@ public class CreateClientUseCase {
       throw new IllegalArgumentException("Nome do cliente e obrigatorio.");
     }
 
+    DocumentRules.validate(cpf, cnpj, null, null);
+
     if (cpf != null && clientRepository.existsByCpf(cpf)) {
       throw new ClientAlreadyExistsException("Ja existe um cliente cadastrado com este CPF.");
     }

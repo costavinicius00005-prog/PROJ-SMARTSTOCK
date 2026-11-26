@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useSidebar } from "@/components/ui/sidebar"
 import { useAuth } from "@/components/auth/auth-context"
+import { AccountSecurityDialog } from "@/components/auth/account-security-dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +21,7 @@ export function ErpHeader() {
   const { user, loading, logout } = useAuth()
   const router = useRouter()
   const [companyName, setCompanyName] = React.useState<string | null>(null)
+  const [accountOpen, setAccountOpen] = React.useState(false)
 
   React.useEffect(() => {
     fetch("/api/settings", { cache: "no-store" })
@@ -72,10 +74,12 @@ export function ErpHeader() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setAccountOpen(true)}>Minha conta e senha</DropdownMenuItem>
               <DropdownMenuItem onClick={logout}>Sair</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+        <AccountSecurityDialog open={accountOpen} onOpenChange={setAccountOpen} />
       </div>
     </header>
   )

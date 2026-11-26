@@ -54,4 +54,34 @@ public record ClientResponse(
         client.city(),
         client.creditLimit());
   }
+
+  /**
+   * Versao para listagens: CPF e e-mail mascarados e sem RG, nascimento, genero e filiacao.
+   * Nome, telefone e endereco continuam visiveis porque vendas e entregas dependem deles.
+   */
+  public static ClientResponse forListing(Client client) {
+    return new ClientResponse(
+        client.id(),
+        client.clientType(),
+        PersonalDataMask.cpf(client.cpf()),
+        client.cnpj(),
+        client.name(),
+        client.tradeName(),
+        PersonalDataMask.email(client.email()),
+        client.primaryPhone(),
+        null,
+        null,
+        null,
+        null,
+        null,
+        client.primaryContactName(),
+        client.zipCode(),
+        client.address(),
+        client.addressNumber(),
+        client.complement(),
+        client.district(),
+        client.state(),
+        client.city(),
+        client.creditLimit());
+  }
 }

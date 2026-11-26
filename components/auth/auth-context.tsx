@@ -2,7 +2,15 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { clearSession, fetchMe, getToken, readStoredUser, type SessionUser } from "@/lib/auth-client"
+import {
+  clearSession,
+  dropLegacyTokenCookie,
+  fetchMe,
+  logoutRequest,
+  readStoredUser,
+  storeUser,
+  type SessionUser,
+} from "@/lib/auth-client"
 
 type AuthContextValue = {
   user: SessionUser | null
@@ -19,19 +27,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = React.useState(true)
   const router = useRouter()
 
+  // A sessao e conferida sempre no servidor (cookie HttpOnly); o perfil salvo so evita "piscar" a tela.
   const refresh = React.useCallback(async () => {
-    const token = getToken()
-    if (!token) {
-      setUser(null)
-      setLoading(false)
-      return
-    }
     try {
       const me = await fetchMe()
       setUser(me)
-      setLoading(false)
+      storeUser(me)
     } catch {
+      clearSession()
       setUser(null)
+    } finally {
       setLoading(false)
     }
   }, [])
@@ -42,6 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   React.useEffect(() => {
+    dropLegacyTokenCookie()
     const stored = readStoredUser()
     if (stored) setUser(stored)
     refresh()
@@ -49,9 +55,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const logout = React.useCallback(() => {
-    clearSession()
-    setUser(null)
-    router.push("/login")
+    logoutRequest().finally(() => {
+      setUser(null)
+      router.push("/login")
+    })
   }, [router])
 
   return (

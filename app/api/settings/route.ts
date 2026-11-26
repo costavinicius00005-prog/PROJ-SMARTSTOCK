@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server"
+import { backendFetch } from "@/lib/server-auth"
 
 const apiBaseUrl = process.env.API_INTERNAL_URL ?? "http://localhost:8080"
 
 async function forward(request: Request, init: RequestInit = {}) {
-  const response = await fetch(`${apiBaseUrl}/api/settings`, {
+  const response = await backendFetch(request, `${apiBaseUrl}/api/settings`, {
     cache: "no-store",
     headers: { "Content-Type": "application/json" },
     ...init,
@@ -15,8 +16,8 @@ async function forward(request: Request, init: RequestInit = {}) {
   })
 }
 
-export async function GET() {
-  return forward(new Request("http://localhost"))
+export async function GET(request: Request) {
+  return forward(request)
 }
 
 export async function PUT(request: Request) {

@@ -1,19 +1,14 @@
 import { NextResponse } from "next/server"
-
-const apiBaseUrl = process.env.API_INTERNAL_URL ?? "http://localhost:8080"
+import { apiBaseUrl, backendFetch, clearSessionCookie } from "@/lib/server-auth"
 
 export async function GET(request: Request) {
-  const authorization = request.headers.get("authorization")
-
-  const response = await fetch(`${apiBaseUrl}/api/auth/me`, {
-    cache: "no-store",
-    headers: authorization ? { Authorization: authorization } : {},
-  })
-
+  const response = await backendFetch(request, `${apiBaseUrl}/api/auth/me`, { cache: "no-store" })
   const data = await response.text()
-
-  return new NextResponse(data, {
+  const result = new NextResponse(data, {
     status: response.status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   })
+  // Sessao expirada/encerrada no servidor: remove o cookie que ficou para tras
+  if (response.status === 401) clearSessionCookie(result, request)
+  return result
 }

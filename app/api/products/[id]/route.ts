@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { authHeader } from "@/lib/server-auth"
+import { authHeader, backendFetch } from "@/lib/server-auth"
 
 const apiBaseUrl = process.env.API_INTERNAL_URL ?? "http://localhost:8080"
 
@@ -9,9 +9,9 @@ type ProductRouteContext = {
   }>
 }
 
-export async function GET(_request: Request, context: ProductRouteContext) {
+export async function GET(request: Request, context: ProductRouteContext) {
   const { id } = await context.params
-  const response = await fetch(`${apiBaseUrl}/api/products/${id}`, {
+  const response = await backendFetch(request, `${apiBaseUrl}/api/products/${id}`, {
     cache: "no-store",
   })
 
@@ -27,7 +27,7 @@ export async function GET(_request: Request, context: ProductRouteContext) {
 
 export async function PUT(request: Request, context: ProductRouteContext) {
   const { id } = await context.params
-  const response = await fetch(`${apiBaseUrl}/api/products/${id}`, {
+  const response = await backendFetch(request, `${apiBaseUrl}/api/products/${id}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -46,9 +46,9 @@ export async function PUT(request: Request, context: ProductRouteContext) {
   return NextResponse.json(await response.json())
 }
 
-export async function DELETE(_request: Request, context: ProductRouteContext) {
+export async function DELETE(request: Request, context: ProductRouteContext) {
   const { id } = await context.params
-  const response = await fetch(`${apiBaseUrl}/api/products/${id}`, {
+  const response = await backendFetch(request, `${apiBaseUrl}/api/products/${id}`, {
     method: "DELETE",
   })
 

@@ -30,14 +30,12 @@ public class CreateUserUseCase {
     if (cleanUsername.isBlank() || cleanUsername.length() < 3) {
       throw new IllegalArgumentException("O identificador do usuario deve ter pelo menos 3 caracteres.");
     }
-    if (cleanPassword.length() < 6) {
-      throw new IllegalArgumentException("A senha deve ter pelo menos 6 caracteres.");
-    }
+    PasswordPolicy.validate(cleanPassword, cleanUsername);
     if (cleanDisplayName.isBlank()) {
       throw new IllegalArgumentException("O nome de exibicao e obrigatorio.");
     }
     if (!VALID_ROLES.contains(cleanRole)) {
-      throw new IllegalArgumentException("Papel invalido. Use ADMIN ou OPERADOR.");
+      throw new IllegalArgumentException("Papel invalido. Use ADMIN, FINANCEIRO ou OPERADOR.");
     }
     if (userRepository.findByUsername(cleanUsername).isPresent()) {
       throw new UserAlreadyExistsException(cleanUsername);

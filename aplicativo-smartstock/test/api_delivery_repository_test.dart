@@ -88,6 +88,25 @@ void main() {
     expect(updatedStatus, 'Entregue');
     expect(receiverName, 'Maria Souza');
   });
+
+  test('envia o token do login nas chamadas seguintes', () async {
+    final authorizations = <String, String?>{};
+    final client = MockClient((request) async {
+      if (request.url.path == '/api/auth/login') {
+        expect(request.headers['authorization'], isNull);
+        return _json({'token': 'token-de-teste', 'userName': 'Entregador', 'email': 'e@smartstock.com'});
+      }
+      authorizations[request.url.path] = request.headers['authorization'];
+      return _json(<Object>[]);
+    });
+    final repository = ApiDeliveryRepository(baseUrl: 'http://localhost:8080/api', client: client);
+
+    await repository.login('e@smartstock.com', '123456');
+    await repository.getDeliveries();
+
+    expect(authorizations['/api/deliveries'], 'Bearer token-de-teste');
+    expect(authorizations['/api/clients'], 'Bearer token-de-teste');
+  });
 }
 
 http.Response _json(Object body) => http.Response(
