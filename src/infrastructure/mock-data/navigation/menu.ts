@@ -53,5 +53,15 @@ export const navigationMenu: NavigationItem[] = [
     ],
   },
   { title: "Contabilidade", icon: "building-2", href: "/contabilidade", roles: FINANCE_ROLES },
-  { title: "Configuracoes", icon: "settings", href: "/configuracoes", roles: ["ADMIN"] },
+  {
+    title: "Configuracoes",
+    icon: "settings",
+    roles: ["ADMIN"],
+    children: [
+      { title: "Dados da Empresa", href: "/configuracoes" },
+      { title: "Usuarios e Permissoes", href: "/admin" },
+      { title: "Integracao e Banco", href: "/admin/integracao" },
+      { title: "Seguranca e LGPD", href: "/admin/seguranca" },
+    ],
+  },
 ]

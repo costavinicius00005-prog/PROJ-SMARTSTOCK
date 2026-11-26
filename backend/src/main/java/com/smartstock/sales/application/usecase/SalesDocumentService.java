@@ -52,7 +52,7 @@ public class SalesDocumentService {
   public SaleReceipt getSaleReceipt(UUID saleId) {
     return repository.findSaleReceipt(saleId).orElseThrow(() -> new IllegalArgumentException("Venda nao encontrada."));
   }
-  public List<SaleReceipt> listRecentSales(int limit) { return repository.listRecentSales(Math.max(1, Math.min(limit, 200))); }
+  public List<SaleReceipt> listRecentSales(int limit) { return repository.listRecentSales(Math.max(1, Math.min(limit, 1000))); }
 
   /**
    * Finaliza uma venda direta ou o faturamento de um pedido em UMA transacao: valida pagamentos e

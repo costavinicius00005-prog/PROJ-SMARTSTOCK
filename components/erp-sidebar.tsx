@@ -17,15 +17,12 @@ import {
   Package,
   Store,
   Truck,
-  ShieldCheck,
-  Database,
 } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -63,14 +60,6 @@ export function ErpSidebar() {
     .listNavigationMenu()
     .filter((item) => allowed(item.roles))
     .map((item) => (item.children ? { ...item, children: item.children.filter((c) => allowed(c.roles)) } : item))
-  const isAdmin = user?.role === "ADMIN"
-
-  const adminLinks = [
-    { href: "/admin", title: "Usuarios e Permissoes", icon: ShieldCheck },
-    { href: "/admin/integracao", title: "Integracao e Banco", icon: Database },
-    { href: "/admin/seguranca", title: "Seguranca e LGPD", icon: ShieldCheck },
-  ]
-
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
       <SidebarHeader className="px-4 py-4 border-b border-sidebar-border">
@@ -154,29 +143,6 @@ export function ErpSidebar() {
                 )
               })}
 
-              {isAdmin && (
-                <div className="pt-3">
-                  <SidebarGroupLabel className="group-data-[collapsible=icon]:hidden">
-                    Administracao
-                  </SidebarGroupLabel>
-                  {adminLinks.map((link) => {
-                    const Icon = link.icon
-                    return (
-                      <SidebarMenuItem key={link.href}>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={pathname === link.href || pathname.startsWith(link.href + "/")}
-                        >
-                          <Link href={link.href}>
-                            <Icon className="size-4 text-muted-foreground" />
-                            <span className="group-data-[collapsible=icon]:hidden">{link.title}</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    )
-                  })}
-                </div>
-              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
